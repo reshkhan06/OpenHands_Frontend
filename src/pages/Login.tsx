@@ -1,19 +1,65 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
 import Logo from '@/components/Logo'
+import { login } from '@/api/auth'
 
 export default function Login() {
+  const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({ email: '', password: '', remember: false })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle login logic here
-    alert('Login successful! Please verify your account with OTP.')
-    // Navigate to dashboard or show OTP modal
+    setError(null)
+    setIsLoading(true)
+
+    try {
+      // Call login API
+      const response = await login({
+        email: formData.email,
+        password: formData.password,
+      })
+
+      // Store token in localStorage
+      localStorage.setItem('access_token', response.access_token)
+      localStorage.setItem('token_type', response.token_type)
+
+      // Store user info if available
+      let userRole = 'user' // default role
+      if (response.user) {
+        localStorage.setItem('user', JSON.stringify(response.user))
+        // Determine user role from response
+        userRole = response.user.role || response.user.user_type || 'user'
+      }
+
+      // Store remember me preference
+      if (formData.remember) {
+        localStorage.setItem('rememberEmail', formData.email)
+      }
+
+      // Show success message
+      // alert('Login successful!')
+
+      // Navigate to appropriate dashboard based on user role
+      if (userRole === 'admin') {
+        navigate('/dashboard/admin')
+      } else if (userRole === 'ngo') {
+        navigate('/dashboard/ngo')
+      } else {
+        navigate('/dashboard/user')
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Login failed'
+      setError(errorMessage)
+      console.error('Login error:', err)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -41,6 +87,11 @@ export default function Login() {
                 <p className="opacity-90">Sign in to your account to continue</p>
               </CardHeader>
               <CardContent className="p-8">
+                {error && (
+                  <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                    {error}
+                  </div>
+                )}
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div>
                     <label className="block text-sm font-semibold mb-2">
@@ -93,8 +144,8 @@ export default function Login() {
                       Forgot password?
                     </Link>
                   </div>
-                  <Button type="submit" className="w-full" size="lg">
-                    Sign In
+                  <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+                    {isLoading ? 'Signing In...' : 'Sign In'}
                   </Button>
                 </form>
                 <div className="text-center mt-6 space-y-2">

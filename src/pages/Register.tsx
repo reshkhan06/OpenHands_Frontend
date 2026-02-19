@@ -1,13 +1,18 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { User, Mail, Lock, Calendar, MapPin, Phone, Eye, EyeOff } from 'lucide-react'
+import { User, Mail, Lock, MapPin, Phone, Eye, EyeOff } from 'lucide-react'
 import Logo from '@/components/Logo'
+import DOBPicker from '@/components/DOBPicker'
+import { signup } from '@/api/auth'
 
 export default function Register() {
+  const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -22,18 +27,53 @@ export default function Register() {
     terms: false,
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
+
+    // Validation
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match.')
+      setError('Passwords do not match.')
       return
     }
     if (formData.password.length < 6) {
-      alert('Password must be at least 6 characters long.')
+      setError('Password must be at least 6 characters long.')
       return
     }
-    // Handle registration logic
-    alert('Registration successful! Please check your email for verification.')
+    if (!formData.terms) {
+      setError('You must agree to the Terms & Conditions')
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      // Call signup API
+      const response = await signup({
+        fname: formData.firstName,
+        lname: formData.lastName,
+        email: formData.email,
+        password: formData.password,
+        contact_number: formData.contact,
+        location: formData.location,
+        gender: formData.gender,
+        role: formData.role,
+        dob: formData.dob,
+      })
+
+      // Store user info in localStorage (optional)
+      localStorage.setItem('registeredEmail', response.email)
+
+      // Show success message and redirect
+      alert('Registration successful! Please check your email for verification.')
+      navigate('/login')
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Registration failed'
+      setError(errorMessage)
+      console.error('Registration error:', err)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -49,6 +89,11 @@ export default function Register() {
                 <h4 className="text-2xl font-bold mb-2">Create Account</h4>
                 <p className="text-gray-600">Join us to start making a difference</p>
               </div>
+              {error && (
+                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                  {error}
+                </div>
+              )}
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
@@ -144,15 +189,9 @@ export default function Register() {
                 </div>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold mb-2">
-                      <Calendar className="w-4 h-4 inline mr-2" />
-                      Date of Birth
-                    </label>
-                    <input
-                      type="date"
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    <DOBPicker
                       value={formData.dob}
-                      onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                      onChange={(date) => setFormData({ ...formData, dob: date })}
                       required
                     />
                   </div>
@@ -210,9 +249,8 @@ export default function Register() {
                     required
                   >
                     <option value="">Select Role</option>
-                    <option>Donor</option>
-                    <option>Volunteer</option>
-                    <option>NGO Representative</option>
+                    <option value="donor">Donor</option>
+                    <option value="ngo_representative">NGO Representative</option>
                   </select>
                 </div>
                 <div className="flex items-start gap-2">
@@ -235,8 +273,8 @@ export default function Register() {
                     </Link>
                   </label>
                 </div>
-                <Button type="submit" className="w-full" size="lg">
-                  Register
+                <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+                  {isLoading ? 'Registering...' : 'Register'}
                 </Button>
               </form>
               <div className="text-center mt-6 space-y-2">
