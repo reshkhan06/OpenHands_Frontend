@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Building2, MapPin } from 'lucide-react'
+import { toast } from 'sonner'
 import { listVerifiedNGOs, type NGOOption } from '@/api/ngos'
 
 export default function NGOs() {
@@ -17,7 +18,11 @@ export default function NGOs() {
         if (!cancelled) setNgos(Array.isArray(data) ? data : [])
       })
       .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load NGOs')
+        if (!cancelled) {
+          const msg = e instanceof Error ? e.message : 'Failed to load NGOs'
+          setError(msg)
+          toast.error(msg)
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false)

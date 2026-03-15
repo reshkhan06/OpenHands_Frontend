@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import Logo from '@/components/Logo'
-import LocationInput from '@/components/LocationInput'
+import GeoapifyAddressInput from '@/components/GeoapifyAddressInput'
+import type { ParsedAddress } from '@/components/GeoapifyAddressInput'
 import { ngoRegister, type NGORegisterRequest } from '@/api/auth'
 
 export default function RegisterNGO() {
@@ -32,10 +34,12 @@ export default function RegisterNGO() {
     setLoading(true)
     try {
       await ngoRegister(form)
-      alert('NGO registered successfully. Your account will be active after verification.')
+      toast.success('NGO registered successfully. Your account will be active after verification.')
       navigate('/login')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed')
+      const msg = err instanceof Error ? err.message : 'Registration failed'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setLoading(false)
     }
@@ -78,11 +82,20 @@ export default function RegisterNGO() {
                 <input required type="email" className="w-full px-4 py-2 border rounded-lg" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
               </div>
               <div>
-                <LocationInput
-                  label={<span className="block text-sm font-semibold mb-1">Address *</span>}
+                <GeoapifyAddressInput
+                  label={<span className="block text-sm font-semibold mb-1">Street address *</span>}
                   value={form.address}
-                  onChange={(v) => setForm({ ...form, address: v })}
-                  placeholder="Start typing for full address (street, city)"
+                  onChange={(streetAddress) => setForm((f) => ({ ...f, address: streetAddress }))}
+                  onAddressSelect={(parsed: ParsedAddress) =>
+                    setForm((f) => ({
+                      ...f,
+                      address: parsed.streetAddress,
+                      city: parsed.city,
+                      state: parsed.state,
+                      pincode: parsed.pincode,
+                    }))
+                  }
+                  placeholder="Start typing street address (city, pincode) — select to auto-fill below"
                   required
                   maxLength={300}
                   className="w-full px-4 py-2 border rounded-lg"
@@ -91,15 +104,15 @@ export default function RegisterNGO() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-semibold mb-1">City *</label>
-                  <input required className="w-full px-4 py-2 border rounded-lg" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+                  <input required className="w-full px-4 py-2 border rounded-lg" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Auto-filled from address" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold mb-1">State *</label>
-                  <input required className="w-full px-4 py-2 border rounded-lg" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
+                  <input required className="w-full px-4 py-2 border rounded-lg" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} placeholder="Auto-filled from address" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold mb-1">Pincode *</label>
-                  <input required maxLength={6} pattern="[0-9]{6}" className="w-full px-4 py-2 border rounded-lg" value={form.pincode} onChange={(e) => setForm({ ...form, pincode: e.target.value })} />
+                  <input required maxLength={6} pattern="[0-9]{6}" className="w-full px-4 py-2 border rounded-lg" value={form.pincode} onChange={(e) => setForm({ ...form, pincode: e.target.value })} placeholder="Auto-filled" />
                 </div>
               </div>
               <div>

@@ -292,8 +292,9 @@ export async function ngoLogin(credentials: LoginRequest): Promise<{ message: st
     body: JSON.stringify(credentials),
   });
   if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.detail || 'NGO login failed');
+    const err = await res.json().catch(() => ({}));
+    const message = parseDetail(err.detail, 'NGO login failed');
+    throw new Error(message);
   }
   return res.json();
 }

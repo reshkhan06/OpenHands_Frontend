@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { User, Mail, MessageSquare, FileText, Star, Send } from 'lucide-react'
@@ -15,7 +16,7 @@ export default function Feedback() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    alert('Thank you for your feedback! We appreciate your input.')
+    toast.success('Thank you for your feedback! We appreciate your input.')
     setFormData({ name: '', email: '', category: '', message: '', rating: '5', followUp: true })
   }
 

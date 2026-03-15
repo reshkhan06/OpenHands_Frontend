@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { createPickup, type PickupCreateBody } from '@/api/pickups'
 import { confirmPayment } from '@/api/payments'
 import { listVerifiedNGOs } from '@/api/ngos'
@@ -32,7 +33,13 @@ export function NewPickupPage() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    listVerifiedNGOs().then(setNgos).catch(() => setError('Failed to load NGOs'))
+    listVerifiedNGOs()
+      .then(setNgos)
+      .catch(() => {
+        const msg = 'Failed to load NGOs'
+        setError(msg)
+        toast.error(msg)
+      })
   }, [])
 
   const isDummyPayment = (status: string, keyId: string | null) =>
@@ -85,14 +92,18 @@ export function NewPickupPage() {
               })
               navigate(`/dashboard/donor/pickups/${pickup.pickup_id}`)
             } catch (err) {
-              setError(err instanceof Error ? err.message : 'Payment verification failed')
+              const msg = err instanceof Error ? err.message : 'Payment verification failed'
+              setError(msg)
+              toast.error(msg)
             }
           },
         }
         const rzp = new window.Razorpay(options)
         rzp.open()
       } else if (keyId && !window.Razorpay) {
-        setError('Payment gateway could not be loaded. Please refresh the page and try again.')
+        const msg = 'Payment gateway could not be loaded. Please refresh the page and try again.'
+        setError(msg)
+        toast.error(msg)
       } else {
         setPaymentStep({
           pickupId: pickup.pickup_id,
@@ -104,7 +115,9 @@ export function NewPickupPage() {
         })
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create pickup')
+      const msg = err instanceof Error ? err.message : 'Failed to create pickup'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setLoading(false)
     }

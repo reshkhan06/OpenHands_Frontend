@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { clearAuthData, fetchUserProfile, type UserProfile } from '@/api/auth'
 import { listPickups, type PickupListItem } from '@/api/pickups'
 import UserProfileDropdown from '@/components/UserProfileDropdown'
@@ -50,7 +51,11 @@ export default function UserDashboard() {
           phone: String(userProfile.contact_number),
         })
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
+      .catch((e) => {
+        const msg = e instanceof Error ? e.message : 'Failed to load'
+        setError(msg)
+        toast.error(msg)
+      })
       .finally(() => setLoading(false))
   }, [])
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { LayoutDashboard, Truck, UserCircle, LogOut, Menu, Clock, CheckCircle, Calendar, ArrowRight, MapPin, Eye, ClipboardList, Filter } from 'lucide-react'
+import { toast } from 'sonner'
 import { clearAuthData } from '@/api/auth'
 import { getNGOProfile, type NGOProfile } from '@/api/ngos'
 import { listPickups, type PickupListItem } from '@/api/pickups'
@@ -44,7 +45,11 @@ export default function NGODashboard() {
           setPickups(Array.isArray(pickupsRes) ? pickupsRes : [])
         }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load')
+        if (!cancelled) {
+          const msg = e instanceof Error ? e.message : 'Failed to load'
+          setError(msg)
+          toast.error(msg)
+        }
       } finally {
         if (!cancelled) setLoading(false)
       }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { toast } from 'sonner'
 import { listPickups, type PickupListItem } from '@/api/pickups'
 import ProtectedRoute from '@/components/ProtectedRoute'
 
@@ -11,7 +12,11 @@ export function MyPickupsPage() {
   useEffect(() => {
     listPickups()
       .then(setPickups)
-      .catch((e) => setError(e.message))
+      .catch((e) => {
+      const msg = e instanceof Error ? e.message : String(e)
+      setError(msg)
+      toast.error(msg)
+    })
       .finally(() => setLoading(false))
   }, [])
 

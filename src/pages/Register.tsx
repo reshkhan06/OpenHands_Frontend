@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { User, Mail, Lock, MapPin, Phone, Eye, EyeOff, Heart, UserCircle, ArrowLeft } from 'lucide-react'
 import Logo from '@/components/Logo'
 import DOBPicker from '@/components/DOBPicker'
-import LocationInput from '@/components/LocationInput'
+import GeoapifyAddressInput from '@/components/GeoapifyAddressInput'
+import type { ParsedAddress } from '@/components/GeoapifyAddressInput'
 import { signup } from '@/api/auth'
 
 type SignupRole = 'donor' | 'ngo' | null
@@ -36,15 +38,21 @@ export default function Register() {
     setError(null)
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match.')
+      const msg = 'Passwords do not match.'
+      setError(msg)
+      toast.error(msg)
       return
     }
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long.')
+      const msg = 'Password must be at least 6 characters long.'
+      setError(msg)
+      toast.error(msg)
       return
     }
     if (!formData.terms) {
-      setError('You must agree to the Terms & Conditions')
+      const msg = 'You must agree to the Terms & Conditions'
+      setError(msg)
+      toast.error(msg)
       return
     }
 
@@ -64,7 +72,7 @@ export default function Register() {
       })
 
       localStorage.setItem('registeredEmail', response.email)
-      alert('Registration successful! Please check your email for verification.')
+      toast.success('Registration successful! Please check your email for verification.')
       navigate('/login')
     } catch (err) {
       const errorMessage =
@@ -74,6 +82,7 @@ export default function Register() {
             ? String((err as { message: unknown }).message)
             : 'Registration failed'
       setError(errorMessage)
+      toast.error(errorMessage)
       console.error('Registration error:', err)
     } finally {
       setIsLoading(false)
@@ -307,20 +316,27 @@ export default function Register() {
                   </div>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
+                <div className="grid md:grid-cols-2 gap-4 overflow-visible">
+                  <div className="md:col-span-2 overflow-visible">
                     <label className="block text-sm font-semibold mb-2">
                       <MapPin className="w-4 h-4 inline mr-2" />
                       Location
                     </label>
-                    <LocationInput
-                      value={formData.location}
-                      onChange={(v) => setFormData({ ...formData, location: v })}
-                      placeholder="City, area or full address"
-                      required
-                      maxLength={100}
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
+                    <div className="relative z-[100] overflow-visible">
+                      <GeoapifyAddressInput
+                        value={formData.location}
+                        onChange={(v) => setFormData((prev) => ({ ...prev, location: v }))}
+                        onAddressSelect={(parsed: ParsedAddress) => {
+                          const full = [parsed.streetAddress, parsed.city, parsed.state, parsed.pincode].filter(Boolean).join(', ')
+                          setFormData((prev) => ({ ...prev, location: full }))
+                        }}
+                        placeholder="Start typing address (city, pincode) — select to auto-fill"
+                        required
+                        minLength={2}
+                        maxLength={300}
+                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold mb-2">

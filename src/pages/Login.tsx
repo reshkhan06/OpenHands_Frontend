@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, MailCheck, Clock } from 'lucide-react'
 import Logo from '@/components/Logo'
 import { login, ngoLogin } from '@/api/auth'
 
@@ -57,6 +58,8 @@ export default function Login() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed'
       setError(errorMessage)
+      // Show toaster with same message (friendly copy for verify/pending is in the inline box below)
+      toast.error(errorMessage)
       console.error('Login error:', err)
     } finally {
       setIsLoading(false)
@@ -89,9 +92,38 @@ export default function Login() {
               </CardHeader>
               <CardContent className="p-8">
                 {error && (
-                  <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                    {error}
-                  </div>
+                  (() => {
+                    const isVerifyEmail = /verify your email|verify your email first/i.test(error)
+                    const isPendingApproval = /pending admin approval|pending approval|once approved/i.test(error)
+                    if (isVerifyEmail) {
+                      return (
+                        <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 text-sm flex gap-3">
+                          <MailCheck className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-600" />
+                          <div>
+                            <p className="font-semibold mb-1">Account not verified</p>
+                            <p className="mb-2">Please verify your email before logging in. Check your inbox for the verification link.</p>
+                            <Link to="/register" className="text-amber-800 font-medium hover:underline">Didn’t get the email? Register again or check spam.</Link>
+                          </div>
+                        </div>
+                      )
+                    }
+                    if (isPendingApproval) {
+                      return (
+                        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-900 text-sm flex gap-3">
+                          <Clock className="w-5 h-5 flex-shrink-0 mt-0.5 text-blue-600" />
+                          <div>
+                            <p className="font-semibold mb-1">NGO account pending approval</p>
+                            <p className="mb-0">Your account is waiting for admin approval. You will receive an email once approved. Please wait.</p>
+                          </div>
+                        </div>
+                      )
+                    }
+                    return (
+                      <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                        {error}
+                      </div>
+                    )
+                  })()
                 )}
                 <div className="flex gap-2 p-1 bg-gray-100 rounded-lg mb-6">
                   <button

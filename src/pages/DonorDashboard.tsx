@@ -20,6 +20,7 @@ import {
   Key,
   Database,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { clearAuthData, fetchUserProfile, changePassword, type UserProfile } from '@/api/auth'
 import { listPickups, type PickupListItem } from '@/api/pickups'
 import UserProfileDropdown from '@/components/UserProfileDropdown'
@@ -61,11 +62,15 @@ export default function DonorDashboard({ initialPage = 'dashboard' }: DonorDashb
     e.preventDefault()
     setPasswordMessage(null)
     if (passwordForm.new !== passwordForm.confirm) {
-      setPasswordMessage({ type: 'error', text: 'New passwords do not match.' })
+      const text = 'New passwords do not match.'
+      setPasswordMessage({ type: 'error', text })
+      toast.error(text)
       return
     }
     if (passwordForm.new.length < 8) {
-      setPasswordMessage({ type: 'error', text: 'New password must be at least 8 characters.' })
+      const text = 'New password must be at least 8 characters.'
+      setPasswordMessage({ type: 'error', text })
+      toast.error(text)
       return
     }
     setPasswordLoading(true)
@@ -75,7 +80,9 @@ export default function DonorDashboard({ initialPage = 'dashboard' }: DonorDashb
       setPasswordForm({ current: '', new: '', confirm: '' })
       setShowPasswordForm(false)
     } catch (err) {
-      setPasswordMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to change password.' })
+      const text = err instanceof Error ? err.message : 'Failed to change password.'
+      setPasswordMessage({ type: 'error', text })
+      toast.error(text)
     } finally {
       setPasswordLoading(false)
     }
@@ -97,7 +104,11 @@ export default function DonorDashboard({ initialPage = 'dashboard' }: DonorDashb
           phone: String(profile.contact_number ?? ''),
         })
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load dashboard data')
+        if (!cancelled) {
+          const msg = e instanceof Error ? e.message : 'Failed to load dashboard data'
+          setError(msg)
+          toast.error(msg)
+        }
       } finally {
         if (!cancelled) setLoading(false)
       }

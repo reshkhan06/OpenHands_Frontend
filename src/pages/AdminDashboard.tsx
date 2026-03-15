@@ -17,8 +17,15 @@ import {
   ArrowLeft,
   IndianRupee,
   Loader2,
+  MapPin,
+  Package,
+  Clock,
+  CreditCard,
+  RotateCcw,
+  Mail,
   type LucideIcon,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { clearAuthData } from '@/api/auth'
 import {
   getAdminDashboard,
@@ -38,6 +45,21 @@ import {
 } from '@/api/admin'
 
 const ICON_SIZE_SM = 18
+
+const PICKUP_STATUS_CONFIG: Record<string, { label: string; icon: LucideIcon; bg: string; text: string }> = {
+  requested: { label: 'Requested', icon: Clock, bg: '#fef3c7', text: '#b45309' },
+  accepted: { label: 'Accepted', icon: CheckCircle, bg: '#dbeafe', text: '#1e40af' },
+  on_the_way: { label: 'On the way', icon: Truck, bg: '#ede9fe', text: '#6d28d9' },
+  picked_up: { label: 'Picked up', icon: Package, bg: '#fce7f3', text: '#be185d' },
+  completed: { label: 'Completed', icon: CheckCircle, bg: '#d1fae5', text: '#166534' },
+  cancelled: { label: 'Cancelled', icon: XCircle, bg: '#f1f5f9', text: '#64748b' },
+}
+
+const PAYMENT_STATUS_CONFIG: Record<string, { label: string; icon: LucideIcon; bg: string; text: string }> = {
+  paid: { label: 'Paid', icon: CheckCircle, bg: '#d1fae5', text: '#065f46' },
+  pending: { label: 'Pending', icon: Clock, bg: '#fef3c7', text: '#92400e' },
+  refunded: { label: 'Refunded', icon: RotateCcw, bg: '#dbeafe', text: '#1e40af' },
+}
 
 type AdminPage = 'dashboard' | 'users' | 'ngos' | 'pickups' | 'settings'
 
@@ -99,7 +121,7 @@ export default function AdminDashboard() {
       setError(null)
       getAdminDashboard()
         .then(setStats)
-        .catch((e) => setError(e.message))
+        .catch((e) => { const m = e instanceof Error ? e.message : String(e); setError(m); toast.error(m); })
         .finally(() => setLoading(false))
     }
   }, [activePage])
@@ -114,7 +136,7 @@ export default function AdminDashboard() {
       if (userIsActive !== '') params.is_active = userIsActive as boolean
       getAdminUsers(params)
         .then(setUsers)
-        .catch((e) => setError(e.message))
+        .catch((e) => { const m = e instanceof Error ? e.message : String(e); setError(m); toast.error(m); })
         .finally(() => setLoading(false))
     }
   }, [activePage, userRole, userSearch, userIsActive])
@@ -125,7 +147,7 @@ export default function AdminDashboard() {
       setError(null)
       getAdminNGOs(ngoVerified === '' ? undefined : (ngoVerified as boolean))
         .then(setNgos)
-        .catch((e) => setError(e.message))
+        .catch((e) => { const m = e instanceof Error ? e.message : String(e); setError(m); toast.error(m); })
         .finally(() => setLoading(false))
     }
   }, [activePage, ngoVerified])
@@ -136,7 +158,7 @@ export default function AdminDashboard() {
       setError(null)
       getAdminPickups(pickupStatus || undefined)
         .then(setPickups)
-        .catch((e) => setError(e.message))
+        .catch((e) => { const m = e instanceof Error ? e.message : String(e); setError(m); toast.error(m); })
         .finally(() => setLoading(false))
     }
   }, [activePage, pickupStatus])
@@ -150,7 +172,7 @@ export default function AdminDashboard() {
           setConfig(c)
           setDepositInput(String(c.deposit_amount_paise))
         })
-        .catch((e) => setError(e.message))
+        .catch((e) => { const m = e instanceof Error ? e.message : String(e); setError(m); toast.error(m); })
         .finally(() => setLoading(false))
     }
   }, [activePage])
@@ -163,7 +185,7 @@ export default function AdminDashboard() {
       setPickupDetail(null)
       getAdminPickup(selectedPickupId)
         .then(setPickupDetail)
-        .catch((e) => setError(e.message))
+        .catch((e) => { const m = e instanceof Error ? e.message : String(e); setError(m); toast.error(m); })
         .finally(() => setPickupDetailLoading(false))
     } else {
       setPickupDetail(null)
@@ -197,7 +219,9 @@ export default function AdminDashboard() {
         )
       )
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Update failed')
+      const msg = e instanceof Error ? e.message : 'Update failed'
+      setError(msg)
+      toast.error(msg)
     }
   }
 
@@ -208,7 +232,9 @@ export default function AdminDashboard() {
         prev.map((n) => (n.ngo_id === ngoId ? { ...n, is_verified } : n))
       )
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Update failed')
+      const msg = e instanceof Error ? e.message : 'Update failed'
+      setError(msg)
+      toast.error(msg)
     }
   }
 
@@ -219,14 +245,18 @@ export default function AdminDashboard() {
       setNgos((prev) => prev.filter((n) => n.ngo_id !== ngoId))
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Delete failed')
+      const msg = e instanceof Error ? e.message : 'Delete failed'
+      setError(msg)
+      toast.error(msg)
     }
   }
 
   const handleSaveConfig = async () => {
     const val = parseInt(depositInput, 10)
     if (isNaN(val) || val < 0) {
-      setError('Deposit amount must be a non-negative number (paise)')
+      const msg = 'Deposit amount must be a non-negative number (paise)'
+      setError(msg)
+      toast.error(msg)
       return
     }
     try {
@@ -234,7 +264,9 @@ export default function AdminDashboard() {
       setConfig(c)
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Save failed')
+      const msg = e instanceof Error ? e.message : 'Save failed'
+      setError(msg)
+      toast.error(msg)
     }
   }
 
@@ -401,41 +433,59 @@ export default function AdminDashboard() {
                     <span>Loading users...</span>
                   </div>
                 ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 680 }}>
                     <thead>
-                      <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Name</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Role</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Actions</th>
+                      <tr style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)', borderBottom: '2px solid #e2e8f0' }}>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Users size={14} strokeWidth={2} /> Name</span>
+                        </th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Mail size={14} strokeWidth={2} /> Email</span>
+                        </th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Shield size={14} strokeWidth={2} /> Role</span>
+                        </th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><CheckCircle size={14} strokeWidth={2} /> Status</span>
+                        </th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Settings size={14} strokeWidth={2} /> Actions</span>
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {users.length === 0 ? (
                         <tr>
-                          <td colSpan={5} style={{ padding: '3rem 16px', textAlign: 'center', color: '#64748b', fontSize: '0.95rem' }}>No users match the filters.</td>
+                          <td colSpan={5} style={{ padding: '3rem 16px', textAlign: 'center', color: '#64748b', fontSize: '0.95rem' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}><Users size={20} strokeWidth={1.5} style={{ opacity: 0.5 }} /> No users match the filters.</span>
+                          </td>
                         </tr>
                       ) : (
                         users.map((u, idx) => (
-                          <tr key={u.user_id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
-                            <td style={{ padding: '14px 16px', fontWeight: 600, color: '#0f172a' }}>{u.fname} {u.lname}</td>
-                            <td style={{ padding: '14px 16px', color: '#475569', fontSize: '0.9rem' }}>{u.email}</td>
-                            <td style={{ padding: '14px 16px' }}>
-                              <span style={{ display: 'inline-block', padding: '5px 12px', borderRadius: '999px', background: u.role === 'admin' ? '#e0e7ff' : '#ccfbf1', color: u.role === 'admin' ? '#3730a3' : '#0f766e', fontSize: '0.8rem', fontWeight: 600 }}>{u.role}</span>
+                          <tr key={u.user_id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#fafbfc', transition: 'background 0.15s ease' }}>
+                            <td style={{ padding: '14px 16px', fontWeight: 600, color: '#1e293b', fontSize: '0.95rem' }}>{u.fname} {u.lname}</td>
+                            <td style={{ padding: '14px 16px', color: '#475569', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Mail size={14} style={{ flexShrink: 0, opacity: 0.7 }} />
+                              {u.email}
                             </td>
                             <td style={{ padding: '14px 16px' }}>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 12px', borderRadius: '999px', background: u.is_active ? '#d1fae5' : '#fee2e2', color: u.is_active ? '#065f46' : '#b91c1c', fontSize: '0.8rem', fontWeight: 600 }}>
-                                {u.is_active ? <CheckCircle size={14} strokeWidth={2} /> : <XCircle size={14} strokeWidth={2} />}
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '999px', background: u.role === 'admin' ? '#e0e7ff' : '#ccfbf1', color: u.role === 'admin' ? '#3730a3' : '#0f766e', fontSize: '0.8rem', fontWeight: 600 }}>
+                                <Shield size={14} strokeWidth={2} style={{ flexShrink: 0 }} />
+                                {u.role === 'admin' ? 'Admin' : 'Donor'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '14px 16px' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '999px', background: u.is_active ? '#d1fae5' : '#fee2e2', color: u.is_active ? '#065f46' : '#b91c1c', fontSize: '0.8rem', fontWeight: 600 }}>
+                                {u.is_active ? <CheckCircle size={14} strokeWidth={2} style={{ flexShrink: 0 }} /> : <XCircle size={14} strokeWidth={2} style={{ flexShrink: 0 }} />}
                                 {u.is_active ? 'Active' : 'Blocked'}
                               </span>
                             </td>
                             <td style={{ padding: '14px 16px', display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-                              <select value={u.role} onChange={(e) => handleUpdateUser(u.user_id, { role: e.target.value })} style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.85rem', background: '#fff', cursor: 'pointer' }}>
+                              <select value={u.role} onChange={(e) => handleUpdateUser(u.user_id, { role: e.target.value })} style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.85rem', background: '#fff', cursor: 'pointer', fontWeight: 500 }}>
                                 <option value="donor">Donor</option>
                                 <option value="admin">Admin</option>
                               </select>
-                              <button type="button" onClick={() => handleUpdateUser(u.user_id, { is_active: !u.is_active })} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, background: u.is_active ? '#fef2f2' : '#dcfce7', color: u.is_active ? '#b91c1c' : '#166534' }}>
+                              <button type="button" onClick={() => handleUpdateUser(u.user_id, { is_active: !u.is_active })} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, background: u.is_active ? '#fef2f2' : '#dcfce7', color: u.is_active ? '#b91c1c' : '#166534', transition: 'transform 0.1s ease' }} onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-1px)' }} onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)' }}>
                                 {u.is_active ? <XCircle size={14} /> : <CheckCircle size={14} />}
                                 {u.is_active ? 'Block' : 'Unblock'}
                               </button>
@@ -476,44 +526,66 @@ export default function AdminDashboard() {
                     <span>Loading NGOs...</span>
                   </div>
                 ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 660 }}>
                     <thead>
-                      <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>NGO Name</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Location</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Verified</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Actions</th>
+                      <tr style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)', borderBottom: '2px solid #e2e8f0' }}>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Building2 size={14} strokeWidth={2} /> NGO Name</span>
+                        </th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><MapPin size={14} strokeWidth={2} /> Location</span>
+                        </th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><CheckCircle size={14} strokeWidth={2} /> Verified</span>
+                        </th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Settings size={14} strokeWidth={2} /> Actions</span>
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {ngos.length === 0 ? (
                         <tr>
-                          <td colSpan={4} style={{ padding: '3rem 16px', textAlign: 'center', color: '#64748b', fontSize: '0.95rem' }}>No NGOs match the filters.</td>
+                          <td colSpan={4} style={{ padding: '3rem 16px', textAlign: 'center', color: '#64748b', fontSize: '0.95rem' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}><Building2 size={20} strokeWidth={1.5} style={{ opacity: 0.5 }} /> No NGOs match the filters.</span>
+                          </td>
                         </tr>
                       ) : (
                         ngos.map((n, idx) => (
-                          <tr key={n.ngo_id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
-                            <td style={{ padding: '14px 16px', fontWeight: 600, color: '#0f172a' }}>{n.ngo_name}</td>
-                            <td style={{ padding: '14px 16px', color: '#475569', fontSize: '0.9rem' }}>{n.city}, {n.state}</td>
-                            <td style={{ padding: '14px 16px' }}>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 12px', borderRadius: '999px', background: n.is_verified ? '#d1fae5' : '#fef3c7', color: n.is_verified ? '#065f46' : '#92400e', fontSize: '0.8rem', fontWeight: 600 }}>
-                                {n.is_verified ? <CheckCircle size={14} strokeWidth={2} /> : null}
+                          <tr key={n.ngo_id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#fafbfc', transition: 'background 0.15s ease' }}>
+                            <td style={{ padding: '14px 16px', fontWeight: 600, color: '#1e293b', fontSize: '0.95rem', verticalAlign: 'middle', minWidth: '180px' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                                <Building2 size={16} style={{ flexShrink: 0, color: '#0d9488', opacity: 0.9 }} />
+                                {n.ngo_name}
+                              </span>
+                            </td>
+                            <td style={{ padding: '14px 16px', color: '#475569', fontSize: '0.9rem', verticalAlign: 'middle', minWidth: '140px' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                <MapPin size={14} style={{ flexShrink: 0, opacity: 0.7 }} />
+                                {(n.city || n.state) ? `${n.city || ''}${n.city && n.state ? ', ' : ''}${n.state || ''}` : '—'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '999px', background: n.is_verified ? '#d1fae5' : '#fef3c7', color: n.is_verified ? '#065f46' : '#92400e', fontSize: '0.8rem', fontWeight: 600 }}>
+                                {n.is_verified ? <CheckCircle size={14} strokeWidth={2} style={{ flexShrink: 0 }} /> : <Clock size={14} strokeWidth={2} style={{ flexShrink: 0 }} />}
                                 {n.is_verified ? 'Verified' : 'Pending'}
                               </span>
                             </td>
-                            <td style={{ padding: '14px 16px', display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-                              <button type="button" onClick={() => handleUpdateNGO(n.ngo_id, true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', boxShadow: '0 1px 3px rgba(16, 185, 129, 0.3)' }}>
-                                <CheckCircle size={14} strokeWidth={2} />
-                                Approve
-                              </button>
-                              <button type="button" onClick={() => handleUpdateNGO(n.ngo_id, false)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, background: '#fef2f2', color: '#b91c1c' }}>
-                                <XCircle size={14} strokeWidth={2} />
-                                Reject
-                              </button>
-                              <button type="button" onClick={() => handleDeleteNGO(n.ngo_id, n.ngo_name)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', border: '1px solid #fecaca', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, background: '#fef2f2', color: '#991b1b' }}>
-                                <Trash2 size={14} strokeWidth={2} />
-                                Delete
-                              </button>
+                            <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                              <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+                                <button type="button" onClick={() => handleUpdateNGO(n.ngo_id, true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', boxShadow: '0 2px 6px rgba(16, 185, 129, 0.35)', transition: 'transform 0.1s ease, box-shadow 0.2s ease' }} onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)' }} onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 6px rgba(16, 185, 129, 0.35)' }}>
+                                  <CheckCircle size={14} strokeWidth={2} />
+                                  Approve
+                                </button>
+                                <button type="button" onClick={() => handleUpdateNGO(n.ngo_id, false)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderRadius: '10px', border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, background: '#fef2f2', color: '#b91c1c', transition: 'transform 0.1s ease' }} onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-1px)' }} onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)' }}>
+                                  <XCircle size={14} strokeWidth={2} />
+                                  Reject
+                                </button>
+                                <button type="button" onClick={() => handleDeleteNGO(n.ngo_id, n.ngo_name)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderRadius: '10px', border: '1px solid #fecaca', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, background: '#fef2f2', color: '#991b1b', transition: 'transform 0.1s ease' }} onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-1px)' }} onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)' }}>
+                                  <Trash2 size={14} strokeWidth={2} />
+                                  Delete
+                                </button>
+                              </span>
                             </td>
                           </tr>
                         ))
@@ -538,10 +610,12 @@ export default function AdminDashboard() {
                   <Filter size={16} style={{ opacity: 0.9 }} />
                   Filter
                 </span>
-                <select value={pickupStatus} onChange={(e) => setPickupStatus(e.target.value)} style={{ padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.875rem', background: '#fff', color: '#475569', fontWeight: 500, cursor: 'pointer' }}>
+                <select value={pickupStatus} onChange={(e) => setPickupStatus(e.target.value)} style={{ padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.875rem', background: '#fff', color: '#475569', fontWeight: 500, cursor: 'pointer', minWidth: '160px' }}>
                   <option value="">All statuses</option>
                   <option value="requested">Requested</option>
-                  <option value="assigned">Assigned</option>
+                  <option value="accepted">Accepted</option>
+                  <option value="on_the_way">On the way</option>
+                  <option value="picked_up">Picked up</option>
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
@@ -575,44 +649,74 @@ export default function AdminDashboard() {
                     <span>Loading pickups...</span>
                   </div>
                 ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
                     <thead>
-                      <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>ID</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Donor</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>NGO</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Address</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Payment</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Action</th>
+                      <tr style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)', borderBottom: '2px solid #e2e8f0' }}>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Package size={14} strokeWidth={2} /> ID</span>
+                        </th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Users size={14} strokeWidth={2} /> Donor</span>
+                        </th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Building2 size={14} strokeWidth={2} /> NGO</span>
+                        </th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><MapPin size={14} strokeWidth={2} /> Address</span>
+                        </th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Clock size={14} strokeWidth={2} /> Status</span>
+                        </th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><CreditCard size={14} strokeWidth={2} /> Payment</span>
+                        </th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', width: '120px' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Eye size={14} strokeWidth={2} /> Action</span>
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {pickups.length === 0 ? (
                         <tr>
-                          <td colSpan={7} style={{ padding: '3rem 16px', textAlign: 'center', color: '#64748b', fontSize: '0.95rem' }}>No pickups match the filters.</td>
+                          <td colSpan={7} style={{ padding: '3rem 16px', textAlign: 'center', color: '#64748b', fontSize: '0.95rem' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}><Truck size={20} strokeWidth={1.5} style={{ opacity: 0.5 }} /> No pickups match the filters.</span>
+                          </td>
                         </tr>
                       ) : (
-                        pickups.map((p, idx) => (
-                          <tr key={p.pickup_id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
-                            <td style={{ padding: '14px 16px', fontWeight: 600, color: '#0f172a' }}>{p.pickup_id}</td>
-                            <td style={{ padding: '14px 16px', color: '#475569', fontSize: '0.9rem' }}>{p.donor_id}</td>
-                            <td style={{ padding: '14px 16px', color: '#475569', fontSize: '0.9rem' }}>{p.ngo_id}</td>
-                            <td style={{ padding: '14px 16px', color: '#475569', fontSize: '0.85rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.pickup_address}>{p.pickup_address}</td>
-                            <td style={{ padding: '14px 16px' }}>
-                              <span style={{ display: 'inline-block', padding: '5px 12px', borderRadius: '999px', background: p.current_status === 'completed' ? '#d1fae5' : p.current_status === 'cancelled' ? '#fee2e2' : '#e0e7ff', color: p.current_status === 'completed' ? '#065f46' : p.current_status === 'cancelled' ? '#b91c1c' : '#3730a3', fontSize: '0.8rem', fontWeight: 600 }}>{p.current_status}</span>
-                            </td>
-                            <td style={{ padding: '14px 16px' }}>
-                              <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '999px', background: p.payment_status === 'paid' ? '#d1fae5' : p.payment_status === 'refunded' ? '#dbeafe' : '#fef3c7', color: p.payment_status === 'paid' ? '#065f46' : p.payment_status === 'refunded' ? '#1e40af' : '#92400e', fontSize: '0.8rem', fontWeight: 600 }}>{p.payment_status}</span>
-                            </td>
-                            <td style={{ padding: '14px 16px' }}>
-                              <button type="button" onClick={() => setPage('pickups', p.pickup_id)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, background: 'linear-gradient(135deg, #6366f1, #4f46e5)', color: 'white', boxShadow: '0 1px 3px rgba(99, 102, 241, 0.3)' }}>
-                                <Eye size={16} strokeWidth={2} />
-                                Details
-                              </button>
-                            </td>
-                          </tr>
-                        ))
+                        pickups.map((p, idx) => {
+                          const statusCfg = PICKUP_STATUS_CONFIG[p.current_status] ?? { label: p.current_status.replace(/_/g, ' '), icon: Clock, bg: '#f1f5f9', text: '#64748b' }
+                          const payCfg = PAYMENT_STATUS_CONFIG[p.payment_status] ?? { label: p.payment_status, icon: CreditCard, bg: '#f1f5f9', text: '#64748b' }
+                          const StatusIcon = statusCfg.icon
+                          const PayIcon = payCfg.icon
+                          return (
+                            <tr key={p.pickup_id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#fafbfc', transition: 'background 0.15s ease' }}>
+                              <td style={{ padding: '14px 16px', fontWeight: 700, color: '#6366f1', fontSize: '0.95rem' }}>#{p.pickup_id}</td>
+                              <td style={{ padding: '14px 16px', color: '#334155', fontSize: '0.9rem', fontWeight: 500 }}>{p.donor_id}</td>
+                              <td style={{ padding: '14px 16px', color: '#334155', fontSize: '0.9rem', fontWeight: 500 }}>{p.ngo_id}</td>
+                              <td style={{ padding: '14px 16px', color: '#475569', fontSize: '0.85rem', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.pickup_address}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><MapPin size={14} style={{ flexShrink: 0, opacity: 0.7 }} /> {p.pickup_address || '—'}</span>
+                              </td>
+                              <td style={{ padding: '14px 16px' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '999px', background: statusCfg.bg, color: statusCfg.text, fontSize: '0.8rem', fontWeight: 600 }}>
+                                  <StatusIcon size={14} strokeWidth={2} style={{ flexShrink: 0 }} />
+                                  {statusCfg.label}
+                                </span>
+                              </td>
+                              <td style={{ padding: '14px 16px' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '999px', background: payCfg.bg, color: payCfg.text, fontSize: '0.8rem', fontWeight: 600 }}>
+                                  <PayIcon size={14} strokeWidth={2} style={{ flexShrink: 0 }} />
+                                  {payCfg.label}
+                                </span>
+                              </td>
+                              <td style={{ padding: '14px 16px' }}>
+                                <button type="button" onClick={() => setPage('pickups', p.pickup_id)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, background: 'linear-gradient(135deg, #6366f1, #4f46e5)', color: 'white', boxShadow: '0 2px 6px rgba(99, 102, 241, 0.35)', transition: 'transform 0.1s ease, box-shadow 0.2s ease' }} onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.4)' }} onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 6px rgba(99, 102, 241, 0.35)' }}>
+                                  <Eye size={16} strokeWidth={2} />
+                                  View
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })
                       )}
                     </tbody>
                   </table>

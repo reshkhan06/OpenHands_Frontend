@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom'
+import { Toaster } from 'sonner'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import BackToTop from './components/BackToTop'
@@ -128,6 +129,7 @@ function App() {
   return (
     <BrowserRouter>
       <AppContent />
+      <Toaster position="top-right" richColors closeButton />
     </BrowserRouter>
   )
 }

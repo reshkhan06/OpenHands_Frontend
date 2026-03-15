@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, AlertCircle, Loader } from 'lucide-react'
@@ -19,7 +20,9 @@ export default function Verify() {
 
       if (!token) {
         setStatus('error')
-        setMessage('No verification token provided.')
+        const msg = 'No verification token provided.'
+        setMessage(msg)
+        toast.error(msg)
         return
       }
 
@@ -36,6 +39,7 @@ export default function Verify() {
         setStatus('error')
         const errorMessage = err instanceof Error ? err.message : 'Verification failed'
         setMessage(errorMessage)
+        toast.error(errorMessage)
         console.error('Verification error:', err)
       }
     }
@@ -64,12 +68,27 @@ export default function Verify() {
               {status === 'success' && (
                 <>
                   <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                  <h2 className="text-2xl font-bold mb-2 text-green-700">Email Verified!</h2>
+                  <h2 className="text-2xl font-bold mb-2 text-green-700">
+                    {pendingAdminApproval ? 'Email Verified – Waiting for Approval' : 'Email Verified!'}
+                  </h2>
                   <p className="text-gray-600 mb-6">{message}</p>
-                  <p className="text-sm text-gray-500 mb-4">Redirecting to login in 3 seconds...</p>
-                  <Button onClick={() => navigate('/login')} className="w-full">
-                    Go to Login
-                  </Button>
+                  {pendingAdminApproval ? (
+                    <>
+                      <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                        Your NGO account will be reviewed by an admin to avoid fake registrations. You will receive an email once approved or rejected.
+                      </p>
+                      <Button onClick={() => navigate('/login')} className="w-full" variant="outline">
+                        Go to Login (you can log in only after approval)
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-gray-500 mb-4">Redirecting to login in 3 seconds...</p>
+                      <Button onClick={() => navigate('/login')} className="w-full">
+                        Go to Login
+                      </Button>
+                    </>
+                  )}
                 </>
               )}
 

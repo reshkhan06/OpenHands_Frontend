@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, Truck, UserCircle, LogOut, Menu, RotateCw, Filter, ClipboardList, Eye, Calendar, MapPin } from 'lucide-react'
+import { toast } from 'sonner'
 import { listPickups, type PickupListItem } from '@/api/pickups'
 import { getNGOProfile, type NGOProfile } from '@/api/ngos'
 import { clearAuthData } from '@/api/auth'
@@ -31,7 +32,11 @@ function NgoPickupsPage() {
         setProfile(p)
         setPickups(Array.isArray(list) ? list : [])
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
+      .catch((e) => {
+        const msg = e instanceof Error ? e.message : 'Failed to load'
+        setError(msg)
+        toast.error(msg)
+      })
       .finally(() => setLoading(false))
   }
 

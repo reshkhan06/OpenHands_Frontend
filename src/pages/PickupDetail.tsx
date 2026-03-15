@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Loader2,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { getPickup, updatePickupStatus, type PickupDetail as PickupDetailType } from '@/api/pickups'
 import type { PickupStatus } from '@/api/pickups'
 import ProtectedRoute from '@/components/ProtectedRoute'
@@ -51,6 +52,7 @@ function PickupDetailPage() {
           ? String((e as { message: unknown }).message)
           : 'Something went wrong'
     setError(msg)
+    toast.error(msg)
   }
 
   const refresh = () => {
