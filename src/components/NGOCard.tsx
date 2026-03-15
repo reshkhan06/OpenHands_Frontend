@@ -1,3 +1,4 @@
+import { Eye, Plus } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
@@ -59,12 +60,12 @@ export default function NGOCard({
         </div>
 
         <div className="flex gap-3 pt-2">
-          <Button variant="outline" size="sm" className="flex-1">
-            <i className="bi bi-eye mr-2"></i>
+          <Button variant="outline" size="sm" className="flex-1 gap-2">
+            <Eye size={16} />
             View
           </Button>
-          <Button size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700">
-            <i className="bi bi-plus-lg mr-2"></i>
+          <Button size="sm" className="flex-1 gap-2 bg-blue-600 hover:bg-blue-700">
+            <Plus size={16} />
             Donate
           </Button>
         </div>

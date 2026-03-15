@@ -1,5 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ChevronDown, UserCircle, Settings, LogOut } from 'lucide-react'
 import { clearAuthData, getCurrentUser } from '@/api/auth'
 
 interface UserProfileDropdownProps {
@@ -62,14 +63,13 @@ export default function UserProfileDropdown({ onProfileClick }: UserProfileDropd
           <span style={{ fontWeight: 500, fontSize: '0.9rem', color: '#1e293b', display: 'block' }}>{userName}</span>
           <span style={{ fontSize: '0.75rem', color: '#64748b' }}>View profile</span>
         </div>
-        <i
-          className="bi bi-chevron-down"
+        <ChevronDown
+          size={18}
           style={{
-            fontSize: '0.8rem',
             transition: 'transform 0.2s ease',
             transform: showDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
           }}
-        ></i>
+        />
       </button>
 
       {showDropdown && (
@@ -138,7 +138,7 @@ export default function UserProfileDropdown({ onProfileClick }: UserProfileDropd
                 ;(e.currentTarget as HTMLElement).style.background = 'none'
               }}
             >
-              <i className="bi bi-person-circle" style={{ fontSize: '1.1rem', color: '#2563eb' }}></i>
+              <UserCircle size={20} style={{ color: '#2563eb' }} />
               <span>My Profile</span>
             </button>
 
@@ -165,7 +165,7 @@ export default function UserProfileDropdown({ onProfileClick }: UserProfileDropd
                 ;(e.currentTarget as HTMLElement).style.background = 'none'
               }}
             >
-              <i className="bi bi-gear" style={{ fontSize: '1.1rem', color: '#7c3aed' }}></i>
+              <Settings size={20} style={{ color: '#7c3aed' }} />
               <span>Settings</span>
             </button>
 
@@ -194,7 +194,7 @@ export default function UserProfileDropdown({ onProfileClick }: UserProfileDropd
                 ;(e.currentTarget as HTMLElement).style.background = 'none'
               }}
             >
-              <i className="bi bi-box-arrow-right" style={{ fontSize: '1.1rem' }}></i>
+              <LogOut size={20} />
               <span>Logout</span>
             </button>
           </div>

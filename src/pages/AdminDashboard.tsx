@@ -1,19 +1,166 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clearAuthData } from '@/api/auth'
+import {
+  getAdminDashboard,
+  getAdminUsers,
+  updateAdminUser,
+  getAdminNGOs,
+  updateAdminNGO,
+  deleteAdminNGO,
+  getAdminPickups,
+  getAdminConfig,
+  updateAdminConfig,
+  type AdminUserRow,
+  type AdminNGORow,
+  type AdminPickupRow,
+  type AdminDashboardStats,
+} from '@/api/admin'
+
+type AdminPage = 'dashboard' | 'users' | 'ngos' | 'pickups' | 'settings'
 
 export default function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [activePage, setActivePage] = useState<AdminPage>('dashboard')
+  const [stats, setStats] = useState<AdminDashboardStats | null>(null)
+  const [users, setUsers] = useState<AdminUserRow[]>([])
+  const [ngos, setNgos] = useState<AdminNGORow[]>([])
+  const [pickups, setPickups] = useState<AdminPickupRow[]>([])
+  const [config, setConfig] = useState<{ deposit_amount_paise: number } | null>(null)
+  const [depositInput, setDepositInput] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (activePage === 'dashboard') {
+      setLoading(true)
+      setError(null)
+      getAdminDashboard()
+        .then(setStats)
+        .catch((e) => setError(e.message))
+        .finally(() => setLoading(false))
+    }
+  }, [activePage])
+
+  useEffect(() => {
+    if (activePage === 'users') {
+      setLoading(true)
+      setError(null)
+      getAdminUsers()
+        .then(setUsers)
+        .catch((e) => setError(e.message))
+        .finally(() => setLoading(false))
+    }
+  }, [activePage])
+
+  useEffect(() => {
+    if (activePage === 'ngos') {
+      setLoading(true)
+      setError(null)
+      getAdminNGOs()
+        .then(setNgos)
+        .catch((e) => setError(e.message))
+        .finally(() => setLoading(false))
+    }
+  }, [activePage])
+
+  useEffect(() => {
+    if (activePage === 'pickups') {
+      setLoading(true)
+      setError(null)
+      getAdminPickups()
+        .then(setPickups)
+        .catch((e) => setError(e.message))
+        .finally(() => setLoading(false))
+    }
+  }, [activePage])
+
+  useEffect(() => {
+    if (activePage === 'settings') {
+      setLoading(true)
+      setError(null)
+      getAdminConfig()
+        .then((c) => {
+          setConfig(c)
+          setDepositInput(String(c.deposit_amount_paise))
+        })
+        .catch((e) => setError(e.message))
+        .finally(() => setLoading(false))
+    }
+  }, [activePage])
 
   const handleLogout = () => {
     clearAuthData()
     navigate('/')
   }
 
+  const handleUpdateUser = async (userId: number, updates: { role?: string; is_active?: boolean }) => {
+    try {
+      await updateAdminUser(userId, updates)
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.user_id === userId
+            ? {
+                ...u,
+                role: updates.role ?? u.role,
+                is_active: updates.is_active ?? u.is_active,
+              }
+            : u
+        )
+      )
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Update failed')
+    }
+  }
+
+  const handleUpdateNGO = async (ngoId: number, is_verified: boolean) => {
+    try {
+      await updateAdminNGO(ngoId, { is_verified })
+      setNgos((prev) =>
+        prev.map((n) => (n.ngo_id === ngoId ? { ...n, is_verified } : n))
+      )
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Update failed')
+    }
+  }
+
+  const handleDeleteNGO = async (ngoId: number, ngoName: string) => {
+    if (!window.confirm(`Delete NGO "${ngoName}"? This will also remove all related pickups and payments.`)) return
+    try {
+      await deleteAdminNGO(ngoId)
+      setNgos((prev) => prev.filter((n) => n.ngo_id !== ngoId))
+      setError(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Delete failed')
+    }
+  }
+
+  const handleSaveConfig = async () => {
+    const val = parseInt(depositInput, 10)
+    if (isNaN(val) || val < 0) {
+      setError('Deposit amount must be a non-negative number (paise)')
+      return
+    }
+    try {
+      const c = await updateAdminConfig({ deposit_amount_paise: val })
+      setConfig(c)
+      setError(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Save failed')
+    }
+  }
+
+  const navItems: { id: AdminPage; label: string; icon: string }[] = [
+    { id: 'dashboard', label: 'Dashboard', icon: 'bi-speedometer2' },
+    { id: 'users', label: 'Users', icon: 'bi-people' },
+    { id: 'ngos', label: 'NGOs', icon: 'bi-building' },
+    { id: 'pickups', label: 'Pickups', icon: 'bi-truck' },
+    { id: 'settings', label: 'Settings', icon: 'bi-gear' },
+  ]
+
   return (
     <div className="app-shell" style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
-      {/* SIDEBAR */}
       <aside
         style={{
           width: '260px',
@@ -29,404 +176,207 @@ export default function AdminDashboard() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '24px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-          <div
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '8px',
-              background: '#4CAF50',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontWeight: 'bold',
-            }}
-          >
-            OH
-          </div>
+          <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: '#4CAF50', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold' }}>OH</div>
           <h4 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 600, color: '#4CAF50' }}>OpenHands</h4>
         </div>
-
         <nav style={{ padding: '20px 0' }}>
-          {[
-            { label: 'Dashboard', icon: 'bi-speedometer2' },
-            { label: 'Users', icon: 'bi-people' },
-            { label: 'NGOs', icon: 'bi-building' },
-            { label: 'Donations', icon: 'bi-box-seam' },
-            { label: 'Payments', icon: 'bi-credit-card' },
-            { label: 'Pickups', icon: 'bi-truck' },
-            { label: 'Volunteers', icon: 'bi-person-badge' },
-            { label: 'Reports', icon: 'bi-graph-up' },
-            { label: 'Settings', icon: 'bi-gear' },
-          ].map((item, idx) => (
-            <a
-              key={idx}
-              onClick={idx === 0 ? undefined : handleLogout}
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActivePage(item.id)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px',
                 padding: '14px 20px',
-                color: idx === 0 ? 'white' : '#cbd5e1',
-                textDecoration: 'none',
-                transition: 'all 0.3s ease',
+                width: '100%',
+                border: 'none',
+                color: activePage === item.id ? 'white' : '#cbd5e1',
                 fontSize: '0.95rem',
-                background: idx === 0 ? '#334155' : 'transparent',
-                borderLeft: idx === 0 ? '4px solid #4CAF50' : 'transparent',
+                background: activePage === item.id ? '#334155' : 'transparent',
+                borderLeft: activePage === item.id ? '4px solid #4CAF50' : 'transparent',
                 cursor: 'pointer',
+                textAlign: 'left',
               }}
             >
               <i className={`bi ${item.icon}`} style={{ fontSize: '1.2rem', width: '24px' }}></i>
               <span>{item.label}</span>
-            </a>
+            </button>
           ))}
+          <button
+            onClick={handleLogout}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '14px 20px',
+              width: '100%',
+              border: 'none',
+              color: '#cbd5e1',
+              fontSize: '0.95rem',
+              background: 'transparent',
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
+          >
+            <i className="bi bi-box-arrow-right" style={{ fontSize: '1.2rem', width: '24px' }}></i>
+            <span>Logout</span>
+          </button>
         </nav>
       </aside>
 
-      {/* MAIN CONTENT */}
       <main style={{ flex: 1, marginLeft: sidebarOpen ? '260px' : '0', transition: 'margin-left 0.3s ease' }}>
-        {/* TOPBAR */}
-        <div
-          style={{
-            background: 'white',
-            padding: '16px 32px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
-            position: 'sticky',
-            top: 0,
-            zIndex: 100,
-          }}
-        >
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '1.5rem',
-              cursor: 'pointer',
-              color: '#1e293b',
-              padding: '8px 12px',
-              borderRadius: '8px',
-              transition: 'background 0.3s ease',
-            }}
-          >
+        <div style={{ background: 'white', padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.12)', position: 'sticky', top: 0, zIndex: 100 }}>
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#1e293b', padding: '8px 12px', borderRadius: '8px' }}>
             <i className="bi bi-list"></i>
           </button>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <span style={{ color: '#1e293b', fontWeight: 500 }}>Admin User</span>
-            <div
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                border: '2px solid #4CAF50',
-                background: '#4CAF50',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-              }}
-            >
-              A
-            </div>
-          </div>
+          <span style={{ color: '#1e293b', fontWeight: 500 }}>Admin</span>
         </div>
 
-        {/* PAGE HEADER */}
-        <div style={{ padding: '32px 32px 20px' }}>
-          <h1 style={{ fontSize: '2rem', fontWeight: 700, color: '#1e293b', marginBottom: '8px' }}>Admin Dashboard</h1>
-          <nav style={{ background: 'none', padding: 0, margin: 0, fontSize: '0.9rem' }}>
-            <ol style={{ display: 'flex', gap: '0.5rem', margin: 0, padding: 0, listStyle: 'none' }}>
-              <li>
-                <a href="#" style={{ color: '#2563eb', textDecoration: 'none' }}>
-                  Home
-                </a>
-              </li>
-              <li>/</li>
-              <li style={{ color: '#64748b' }}>Dashboard</li>
-            </ol>
-          </nav>
-        </div>
-
-        {/* STATS GRID */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: '24px',
-            padding: '0 32px 32px',
-          }}
-        >
-          <AdminStatCard title="Total Donations" value="₹ 23,40,000" icon="bi-currency-rupee" color="#10b981" trend="+12.5%" />
-          <AdminStatCard title="Verified NGOs" value="152" icon="bi-building-check" color="#3b82f6" trend="+8 new" />
-          <AdminStatCard title="Pending Requests" value="24" icon="bi-clock-history" color="#f59e0b" trend="Awaiting approval" />
-          <AdminStatCard title="Active Volunteers" value="1,260" icon="bi-people-fill" color="#ef4444" trend="+45" />
-        </div>
-
-        {/* CONTENT SECTIONS */}
-        <div style={{ padding: '0 32px 32px' }}>
-          <div style={{ marginBottom: '24px' }}>
-            {/* Recent Donation Requests */}
-            <div
-              style={{
-                background: 'white',
-                borderRadius: '12px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
-                marginBottom: '24px',
-              }}
-            >
-              <div
-                style={{
-                  padding: '20px 24px',
-                  borderBottom: '1px solid #e2e8f0',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <h2 style={{ fontSize: '1.2rem', fontWeight: 600, color: '#1e293b', margin: 0 }}>Recent Donation Requests</h2>
-                <button
-                  style={{
-                    background: 'transparent',
-                    border: '1px solid #3b82f6',
-                    color: '#3b82f6',
-                    padding: '6px 16px',
-                    borderRadius: '6px',
-                    fontSize: '0.85rem',
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                  }}
-                >
-                  View All
-                </button>
-              </div>
-
-              <div style={{ padding: '24px', overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ background: '#f8fafc' }}>
-                      <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase' }}>Donor</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase' }}>NGO</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase' }}>Items</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase' }}>Pickup Date</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase' }}>Status</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                      <td style={{ padding: '16px' }}>Jason Fernandes</td>
-                      <td style={{ padding: '16px' }}>Seva Foundation</td>
-                      <td style={{ padding: '16px' }}>Books, Clothes</td>
-                      <td style={{ padding: '16px' }}>Feb 18, 2026</td>
-                      <td style={{ padding: '16px' }}>
-                        <span
-                          style={{
-                            background: 'rgba(245, 158, 11, 0.1)',
-                            color: '#f59e0b',
-                            padding: '6px 12px',
-                            borderRadius: '20px',
-                            fontSize: '0.8rem',
-                            fontWeight: 600,
-                          }}
-                        >
-                          Pending
-                        </span>
-                      </td>
-                      <td style={{ padding: '16px' }}>
-                        <button style={actionButtonStyle}>
-                          <i className="bi bi-eye"></i>
-                        </button>
-                        <button style={actionButtonStyle}>
-                          <i className="bi bi-check"></i>
-                        </button>
-                      </td>
-                    </tr>
-                    <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                      <td style={{ padding: '16px' }}>Pratham Naik</td>
-                      <td style={{ padding: '16px' }}>Hope Trust</td>
-                      <td style={{ padding: '16px' }}>Food Items</td>
-                      <td style={{ padding: '16px' }}>Feb 17, 2026</td>
-                      <td style={{ padding: '16px' }}>
-                        <span
-                          style={{
-                            background: 'rgba(16, 185, 129, 0.1)',
-                            color: '#10b981',
-                            padding: '6px 12px',
-                            borderRadius: '20px',
-                            fontSize: '0.8rem',
-                            fontWeight: 600,
-                          }}
-                        >
-                          Verified
-                        </span>
-                      </td>
-                      <td style={{ padding: '16px' }}>
-                        <button style={actionButtonStyle}>
-                          <i className="bi bi-eye"></i>
-                        </button>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* NGO Verification Queue */}
-            <div
-              style={{
-                background: 'white',
-                borderRadius: '12px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
-              }}
-            >
-              <div
-                style={{
-                  padding: '20px 24px',
-                  borderBottom: '1px solid #e2e8f0',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <h2 style={{ fontSize: '1.2rem', fontWeight: 600, color: '#1e293b', margin: 0 }}>NGO Verification Queue</h2>
-                <span
-                  style={{
-                    background: 'rgba(245, 158, 11, 0.1)',
-                    color: '#f59e0b',
-                    padding: '6px 12px',
-                    borderRadius: '20px',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                  }}
-                >
-                  6 Pending
-                </span>
-              </div>
-
-              <div style={{ padding: '24px', overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ background: '#f8fafc' }}>
-                      <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase' }}>NGO Name</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase' }}>Location</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase' }}>Registration No.</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase' }}>Submitted</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                      <td style={{ padding: '16px' }}>
-                        <strong>Green Earth Foundation</strong>
-                      </td>
-                      <td style={{ padding: '16px' }}>Panjim, Goa</td>
-                      <td style={{ padding: '16px' }}>REG/2026/001234</td>
-                      <td style={{ padding: '16px' }}>Feb 15, 2026</td>
-                      <td style={{ padding: '16px' }}>
-                        <button style={{ ...actionButtonStyle, marginRight: '8px' }}>Review</button>
-                        <button style={{ ...approveButtonStyle, marginRight: '8px' }}>Approve</button>
-                        <button style={rejectButtonStyle}>Reject</button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style={{ padding: '16px' }}>
-                        <strong>Community Care Initiative</strong>
-                      </td>
-                      <td style={{ padding: '16px' }}>Mumbai, Maharashtra</td>
-                      <td style={{ padding: '16px' }}>REG/2026/001235</td>
-                      <td style={{ padding: '16px' }}>Feb 14, 2026</td>
-                      <td style={{ padding: '16px' }}>
-                        <button style={{ ...actionButtonStyle, marginRight: '8px' }}>Review</button>
-                        <button style={{ ...approveButtonStyle, marginRight: '8px' }}>Approve</button>
-                        <button style={rejectButtonStyle}>Reject</button>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+        <div style={{ padding: '32px' }}>
+          {error && (
+            <div style={{ marginBottom: '16px', padding: '12px', background: '#fef2f2', color: '#b91c1c', borderRadius: '8px' }}>{error}</div>
+          )}
+          {activePage === 'dashboard' && (
+            <>
+              <h1 style={{ fontSize: '2rem', fontWeight: 700, color: '#1e293b', marginBottom: '24px' }}>Dashboard</h1>
+              {loading ? <p>Loading...</p> : stats && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px', marginBottom: '32px' }}>
+                  <AdminStatCard title="Total Users" value={String(stats.users_total)} color="#3b82f6" />
+                  <AdminStatCard title="Total NGOs" value={String(stats.ngos_total)} color="#10b981" />
+                  <AdminStatCard title="NGOs Pending" value={String(stats.ngos_pending)} color="#f59e0b" />
+                  <AdminStatCard title="Total Pickups" value={String(stats.pickups_total)} color="#8b5cf6" />
+                  <AdminStatCard title="Pickups Requested" value={String(stats.pickups_requested)} color="#ec4899" />
+                  <AdminStatCard title="Active Deposits" value={String(stats.deposits_active)} color="#14b8a6" />
+                </div>
+              )}
+            </>
+          )}
+          {activePage === 'users' && (
+            <>
+              <h1 style={{ fontSize: '2rem', fontWeight: 700, color: '#1e293b', marginBottom: '24px' }}>Users</h1>
+              {loading ? <p>Loading...</p> : (
+                <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.12)', overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc' }}>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem' }}>Name</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem' }}>Email</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem' }}>Role</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem' }}>Status</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.map((u) => (
+                        <tr key={u.user_id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                          <td style={{ padding: '16px' }}>{u.fname} {u.lname}</td>
+                          <td style={{ padding: '16px' }}>{u.email}</td>
+                          <td style={{ padding: '16px' }}>{u.role}</td>
+                          <td style={{ padding: '16px' }}>
+                            <span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '0.8rem', background: u.is_active ? '#dcfce7' : '#fee2e2', color: u.is_active ? '#166534' : '#b91c1c' }}>{u.is_active ? 'Active' : 'Blocked'}</span>
+                          </td>
+                          <td style={{ padding: '16px' }}>
+                            <button onClick={() => handleUpdateUser(u.user_id, { is_active: !u.is_active })} style={{ marginRight: '8px', padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '0.85rem', background: u.is_active ? '#fee2e2' : '#dcfce7', color: u.is_active ? '#b91c1c' : '#166534' }}>{u.is_active ? 'Block' : 'Unblock'}</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+          {activePage === 'ngos' && (
+            <>
+              <h1 style={{ fontSize: '2rem', fontWeight: 700, color: '#1e293b', marginBottom: '24px' }}>NGOs</h1>
+              {loading ? <p>Loading...</p> : (
+                <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.12)', overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc' }}>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem' }}>NGO Name</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem' }}>Location</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem' }}>Verified</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ngos.map((n) => (
+                        <tr key={n.ngo_id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                          <td style={{ padding: '16px' }}><strong>{n.ngo_name}</strong></td>
+                          <td style={{ padding: '16px' }}>{n.city}, {n.state}</td>
+                          <td style={{ padding: '16px' }}>{n.is_verified ? 'Yes' : 'No'}</td>
+                          <td style={{ padding: '16px' }}>
+                            <button onClick={() => handleUpdateNGO(n.ngo_id, true)} style={{ marginRight: '8px', padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '0.85rem', background: '#dcfce7', color: '#166534' }}>Approve</button>
+                            <button onClick={() => handleUpdateNGO(n.ngo_id, false)} style={{ marginRight: '8px', padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '0.85rem', background: '#fee2e2', color: '#b91c1c' }}>Reject</button>
+                            <button onClick={() => handleDeleteNGO(n.ngo_id, n.ngo_name)} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #fecaca', cursor: 'pointer', fontSize: '0.85rem', background: '#fef2f2', color: '#991b1b' }}>Delete</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+          {activePage === 'pickups' && (
+            <>
+              <h1 style={{ fontSize: '2rem', fontWeight: 700, color: '#1e293b', marginBottom: '24px' }}>Pickups</h1>
+              {loading ? <p>Loading...</p> : (
+                <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.12)', overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc' }}>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem' }}>ID</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem' }}>Donor</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem' }}>NGO</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem' }}>Address</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem' }}>Status</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#64748b', fontSize: '0.85rem' }}>Payment</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pickups.map((p) => (
+                        <tr key={p.pickup_id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                          <td style={{ padding: '16px' }}>{p.pickup_id}</td>
+                          <td style={{ padding: '16px' }}>{p.donor_id}</td>
+                          <td style={{ padding: '16px' }}>{p.ngo_id}</td>
+                          <td style={{ padding: '16px' }}>{p.pickup_address}</td>
+                          <td style={{ padding: '16px' }}><span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '0.8rem', background: '#e0e7ff', color: '#3730a3' }}>{p.current_status}</span></td>
+                          <td style={{ padding: '16px' }}>{p.payment_status}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+          {activePage === 'settings' && (
+            <>
+              <h1 style={{ fontSize: '2rem', fontWeight: 700, color: '#1e293b', marginBottom: '24px' }}>Settings</h1>
+              {loading ? <p>Loading...</p> : (
+                <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.12)', padding: '24px', maxWidth: '400px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: '#374151' }}>Deposit amount (paise)</label>
+                  <input type="number" min={0} value={depositInput} onChange={(e) => setDepositInput(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px', marginBottom: '16px' }} />
+                  <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '16px' }}>Current: {config?.deposit_amount_paise ?? 0} paise (₹{(config?.deposit_amount_paise ?? 0) / 100})</p>
+                  <button onClick={handleSaveConfig} style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: '#4CAF50', color: 'white', fontWeight: 600, cursor: 'pointer' }}>Save</button>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </main>
     </div>
   )
 }
 
-function AdminStatCard({ title, value, icon, color, trend }: any) {
+function AdminStatCard({ title, value, color }: { title: string; value: string; color: string }) {
   return (
-    <div
-      style={{
-        background: 'white',
-        padding: '24px',
-        borderRadius: '12px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
-        transition: 'all 0.3s ease',
-        borderLeft: `4px solid ${color}`,
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-        <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{title}</span>
-        <div
-          style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '1.5rem',
-            background: `rgba(${color === '#10b981' ? '16, 185, 129' : color === '#3b82f6' ? '59, 130, 246' : color === '#f59e0b' ? '245, 158, 11' : '239, 68, 68'}, 0.1)`,
-            color: color,
-          }}
-        >
-          <i className={`bi ${icon}`}></i>
-        </div>
-      </div>
-      <div style={{ fontSize: '2rem', fontWeight: 700, color: '#1e293b', marginBottom: '4px' }}>{value}</div>
-      <div style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px', color }}>
-        {trend.includes('+') ? <i className="bi bi-arrow-up"></i> : null}
-        <span>{trend}</span>
-      </div>
+    <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.12)', borderLeft: `4px solid ${color}` }}>
+      <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 500 }}>{title}</span>
+      <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#1e293b', marginTop: '8px' }}>{value}</div>
     </div>
   )
-}
-
-const actionButtonStyle = {
-  background: 'rgba(59, 130, 246, 0.1)',
-  color: '#3b82f6',
-  border: 'none',
-  padding: '6px 12px',
-  borderRadius: '6px',
-  cursor: 'pointer',
-  fontSize: '0.85rem',
-  transition: 'all 0.3s ease',
-  marginRight: '8px',
-}
-
-const approveButtonStyle = {
-  background: 'rgba(16, 185, 129, 0.1)',
-  color: '#10b981',
-  border: 'none',
-  padding: '6px 12px',
-  borderRadius: '6px',
-  cursor: 'pointer',
-  fontSize: '0.85rem',
-  transition: 'all 0.3s ease',
-}
-
-const rejectButtonStyle = {
-  background: 'rgba(239, 68, 68, 0.1)',
-  color: '#ef4444',
-  border: 'none',
-  padding: '6px 12px',
-  borderRadius: '6px',
-  cursor: 'pointer',
-  fontSize: '0.85rem',
-  transition: 'all 0.3s ease',
 }

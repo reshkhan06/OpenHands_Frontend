@@ -17,10 +17,10 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
   if (requiredRole) {
     const userRole = getUserRole()
     
-    // Map user roles to dashboard roles
+    // Only two types: donor (donate items) and ngo (receive items). user = donor.
     const roleMapping: { [key: string]: string } = {
-      'donor': 'user',
-      'user': 'user',
+      'user': 'donor',
+      'donor': 'donor',
       'ngo_representative': 'ngo',
       'ngo': 'ngo',
       'admin': 'admin',

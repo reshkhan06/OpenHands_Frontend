@@ -1,40 +1,81 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Heart, Users, Droplet, HeartPulse, Brush, Wrench, ShoppingBasket, Building } from 'lucide-react'
-
-const ngos = [
-  { id: 1, name: 'Helping Hands Foundation', description: 'Providing food, shelter, and education to underprivileged communities.', icon: Building, color: 'text-primary' },
-  { id: 2, name: 'Green Earth Initiative', description: 'Environmental conservation and sustainable development projects.', icon: Heart, color: 'text-green-500' },
-  { id: 3, name: 'Education for All', description: 'Empowering children through quality education and learning resources.', icon: Building, color: 'text-blue-500' },
-  { id: 4, name: 'Women Empowerment Trust', description: 'Vocational training and micro-loan programs to support women entrepreneurs.', icon: Users, color: 'text-yellow-500' },
-  { id: 5, name: 'Clean Water Project', description: 'Building wells and water systems to provide safe drinking water in rural areas.', icon: Droplet, color: 'text-primary' },
-  { id: 6, name: 'HealthFirst Initiative', description: 'Community health camps, vaccinations and maternal care outreach programs.', icon: HeartPulse, color: 'text-red-500' },
-  { id: 7, name: 'Art for Change', description: 'Creative programs that use art to educate and empower youth.', icon: Brush, color: 'text-blue-500' },
-  { id: 8, name: 'Rural Skills Network', description: 'Skill development workshops focused on sustainable livelihoods in villages.', icon: Wrench, color: 'text-green-500' },
-  { id: 9, name: 'Food Relief Coalition', description: 'Rapid-response food distribution and community kitchens in crisis zones.', icon: ShoppingBasket, color: 'text-yellow-500' },
-]
+import { Building2, MapPin } from 'lucide-react'
+import { listVerifiedNGOs, type NGOOption } from '@/api/ngos'
 
 export default function NGOs() {
+  const [ngos, setNgos] = useState<NGOOption[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    listVerifiedNGOs()
+      .then((data) => {
+        if (!cancelled) setNgos(Array.isArray(data) ? data : [])
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load NGOs')
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [])
+
   return (
     <div className="pt-16 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
       <section className="py-20">
         <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-3 gap-6">
-            {ngos.map((ngo) => {
-              const Icon = ngo.icon
-              return (
-                <Card key={ngo.id} className="p-6 text-center border-0 shadow-sm hover:shadow-lg transition-shadow">
-                  <Icon className={`w-16 h-16 ${ngo.color} mx-auto mb-4`} />
-                  <h5 className="font-bold text-lg mb-3">{ngo.name}</h5>
-                  <p className="text-gray-600 mb-4">{ngo.description}</p>
-                  <Link to={`/ngo/${ngo.id}`}>
-                    <Button className="w-full">View Profile</Button>
-                  </Link>
-                </Card>
-              )
-            })}
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">Our Partner NGOs</h1>
+            <p className="text-gray-600">
+              Verified organizations you can donate to. Request a pickup and choose an NGO to receive your items.
+            </p>
           </div>
+
+          {error && (
+            <div className="max-w-xl mx-auto mb-8 p-4 rounded-lg bg-red-50 text-red-700 text-center">
+              {error}
+            </div>
+          )}
+
+          {loading ? (
+            <div className="text-center py-12 text-gray-500">Loading NGOs...</div>
+          ) : ngos.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              No verified NGOs yet. Check back later or contact us to partner.
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {ngos.map((ngo) => (
+                <Card key={ngo.ngo_id} className="p-6 border-0 shadow-sm hover:shadow-lg transition-shadow flex flex-col">
+                  <CardContent className="p-0 flex flex-col flex-1">
+                    <div className="flex items-start gap-4 mb-4">
+                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                        <Building2 className="w-6 h-6 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <h5 className="font-bold text-lg text-gray-900">{ngo.ngo_name}</h5>
+                        <div className="flex items-center gap-1.5 text-gray-600 mt-1">
+                          <MapPin className="w-4 h-4 shrink-0" />
+                          <span className="text-sm">{ngo.city}, {ngo.state}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-gray-600 text-sm mb-4 flex-1">
+                      Verified partner. You can request a pickup and select this NGO to receive your donation.
+                    </p>
+                    <Link to="/dashboard/donor/pickups/new" className="block">
+                      <Button className="w-full">Request pickup</Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </section>
     </div>

@@ -2,13 +2,17 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { User, Mail, Lock, MapPin, Phone, Eye, EyeOff } from 'lucide-react'
+import { User, Mail, Lock, MapPin, Phone, Eye, EyeOff, Heart, UserCircle, ArrowLeft } from 'lucide-react'
 import Logo from '@/components/Logo'
 import DOBPicker from '@/components/DOBPicker'
+import LocationInput from '@/components/LocationInput'
 import { signup } from '@/api/auth'
+
+type SignupRole = 'donor' | 'ngo' | null
 
 export default function Register() {
   const navigate = useNavigate()
+  const [selectedRole, setSelectedRole] = useState<SignupRole>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -23,7 +27,7 @@ export default function Register() {
     gender: '',
     location: '',
     contact: '',
-    role: '',
+    preferredCause: '',
     terms: false,
   })
 
@@ -31,7 +35,6 @@ export default function Register() {
     e.preventDefault()
     setError(null)
 
-    // Validation
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match.')
       return
@@ -48,7 +51,6 @@ export default function Register() {
     setIsLoading(true)
 
     try {
-      // Call signup API
       const response = await signup({
         fname: formData.firstName,
         lname: formData.lastName,
@@ -56,19 +58,21 @@ export default function Register() {
         password: formData.password,
         contact_number: formData.contact,
         location: formData.location,
-        gender: formData.gender,
-        role: formData.role,
-        dob: formData.dob,
+        gender: formData.gender || 'Other',
+        role: 'donor',
+        dob: formData.dob || undefined,
       })
 
-      // Store user info in localStorage (optional)
       localStorage.setItem('registeredEmail', response.email)
-
-      // Show success message and redirect
       alert('Registration successful! Please check your email for verification.')
       navigate('/login')
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Registration failed'
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : typeof err === 'object' && err !== null && 'message' in err
+            ? String((err as { message: unknown }).message)
+            : 'Registration failed'
       setError(errorMessage)
       console.error('Registration error:', err)
     } finally {
@@ -76,22 +80,114 @@ export default function Register() {
     }
   }
 
+  const goBackToRoleSelection = () => {
+    setSelectedRole(null)
+    setError(null)
+    setFormData({
+      firstName: '',
+      lastName: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      dob: '',
+      gender: '',
+      location: '',
+      contact: '',
+      preferredCause: '',
+      terms: false,
+    })
+  }
+
+  // Step 1: Role selection
+  if (selectedRole === null) {
+    return (
+      <div className="pt-16 hero-gradient min-h-screen py-12">
+        <div className="container mx-auto px-4">
+          <div className="max-w-2xl mx-auto">
+            <Card className="border-0 shadow-xl">
+              <CardContent className="p-8">
+                <div className="text-center mb-8">
+                  <div className="mb-4 flex justify-center">
+                    <Logo size="lg" />
+                  </div>
+                  <h4 className="text-2xl font-bold mb-2">Create Account</h4>
+                  <p className="text-gray-600">Please select your role to continue</p>
+                </div>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRole('donor')}
+                    className="p-6 rounded-xl border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all text-left group"
+                  >
+                    <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                      <Heart className="w-7 h-7" />
+                    </div>
+                    <h5 className="font-bold text-lg mb-2">Donor</h5>
+                    <p className="text-sm text-gray-600">
+                      Donate items. Request pickups, pay refundable deposit, and track your donations.
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRole('ngo')}
+                    className="p-6 rounded-xl border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all text-left group"
+                  >
+                    <div className="w-14 h-14 rounded-full bg-blue-100 text-primary flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-white transition-colors">
+                      <UserCircle className="w-7 h-7" />
+                    </div>
+                    <h5 className="font-bold text-lg mb-2">NGO</h5>
+                    <p className="text-sm text-gray-600">
+                      Receive donations. Get your organization verified and accept pickup requests from donors.
+                    </p>
+                  </button>
+                </div>
+                <div className="text-center mt-6">
+                  <p className="text-sm">
+                    Already have an account?{' '}
+                    <Link to="/login" className="text-primary hover:underline">
+                      Login here
+                    </Link>
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // If NGO selected, go to NGO registration page
+  if (selectedRole === 'ngo') {
+    navigate('/register/ngo')
+    return null
+  }
+
+  // Step 2: Donor signup form
   return (
     <div className="pt-16 hero-gradient min-h-screen py-12">
       <div className="container mx-auto px-4">
         <div className="max-w-3xl mx-auto">
           <Card className="border-0 shadow-xl">
             <CardContent className="p-8">
+              <button
+                type="button"
+                onClick={goBackToRoleSelection}
+                className="flex items-center gap-2 text-gray-600 hover:text-primary mb-4"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Change role
+              </button>
               <div className="text-center mb-6">
                 <div className="mb-4 flex justify-center">
                   <Logo size="lg" />
                 </div>
-                <h4 className="text-2xl font-bold mb-2">Create Account</h4>
-                <p className="text-gray-600">Join us to start making a difference</p>
+                <h4 className="text-2xl font-bold mb-2">Donor Registration</h4>
+                <p className="text-gray-600">Donate items and request pickups. Verify your email to get started.</p>
               </div>
               {error && (
                 <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                  {error}
+                  {typeof error === 'string' ? error : 'Registration failed'}
                 </div>
               )}
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -187,14 +283,8 @@ export default function Register() {
                     </div>
                   </div>
                 </div>
+
                 <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <DOBPicker
-                      value={formData.dob}
-                      onChange={(date) => setFormData({ ...formData, dob: date })}
-                      required
-                    />
-                  </div>
                   <div>
                     <label className="block text-sm font-semibold mb-2">Gender</label>
                     <select
@@ -209,20 +299,27 @@ export default function Register() {
                       <option>Other</option>
                     </select>
                   </div>
+                  <div>
+                    <DOBPicker
+                      value={formData.dob}
+                      onChange={(date) => setFormData({ ...formData, dob: date })}
+                    />
+                  </div>
                 </div>
+
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-semibold mb-2">
                       <MapPin className="w-4 h-4 inline mr-2" />
                       Location
                     </label>
-                    <input
-                      type="text"
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="Enter your location"
+                    <LocationInput
                       value={formData.location}
-                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      onChange={(v) => setFormData({ ...formData, location: v })}
+                      placeholder="City, area or full address"
                       required
+                      maxLength={100}
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     />
                   </div>
                   <div>
@@ -240,19 +337,28 @@ export default function Register() {
                     />
                   </div>
                 </div>
+
                 <div>
-                  <label className="block text-sm font-semibold mb-2">Role</label>
-                  <select
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    value={formData.role}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                    required
-                  >
-                    <option value="">Select Role</option>
-                    <option value="donor">Donor</option>
-                    <option value="ngo_representative">NGO Representative</option>
-                  </select>
-                </div>
+                    <label className="block text-sm font-semibold mb-2">
+                      <Heart className="w-4 h-4 inline mr-2" />
+                      Preferred Cause (optional)
+                    </label>
+                    <select
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      value={formData.preferredCause}
+                      onChange={(e) => setFormData({ ...formData, preferredCause: e.target.value })}
+                    >
+                      <option value="">Select a cause</option>
+                      <option value="education">Education</option>
+                      <option value="health">Health & Medical</option>
+                      <option value="food">Food Security</option>
+                      <option value="environment">Environment</option>
+                      <option value="children">Children</option>
+                      <option value="women">Women Empowerment</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
                 <div className="flex items-start gap-2">
                   <input
                     type="checkbox"
@@ -274,7 +380,7 @@ export default function Register() {
                   </label>
                 </div>
                 <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
-                  {isLoading ? 'Registering...' : 'Register'}
+                  {isLoading ? 'Registering...' : 'Register as Donor'}
                 </Button>
               </form>
               <div className="text-center mt-6 space-y-2">

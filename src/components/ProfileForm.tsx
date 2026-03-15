@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { UserCircle, Pencil, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -6,21 +7,34 @@ import { Label } from '@/components/ui/label'
 
 interface ProfileFormProps {
   onSave?: (data: ProfileData) => void
+  initialData?: ProfileData | null
 }
 
 export interface ProfileData {
   name: string
   email: string
   phone: string
+  location?: string
 }
 
-export default function ProfileForm({ onSave }: ProfileFormProps) {
+export default function ProfileForm({ onSave, initialData }: ProfileFormProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState<ProfileData>({
-    name: 'John Doe',
-    email: 'john.doe@email.com',
-    phone: '+91 98765 43210',
+    name: initialData?.name ?? 'John Doe',
+    email: initialData?.email ?? 'john.doe@email.com',
+    phone: initialData?.phone ?? '+91 98765 43210',
   })
+
+  // Sync when initialData loads or changes
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        name: (initialData.name ?? '').trim() || '—',
+        email: initialData.email ?? '—',
+        phone: initialData.phone != null ? String(initialData.phone) : '—',
+      })
+    }
+  }, [initialData?.name, initialData?.email, initialData?.phone])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -37,19 +51,20 @@ export default function ProfileForm({ onSave }: ProfileFormProps) {
 
   const handleCancel = () => {
     setIsEditing(false)
-    // Reset to original values
-    setFormData({
-      name: 'John Doe',
-      email: 'john.doe@email.com',
-      phone: '+91 98765 43210',
-    })
+    if (initialData) {
+      setFormData({
+        name: initialData.name ?? '—',
+        email: initialData.email ?? '—',
+        phone: initialData.phone ?? '—',
+      })
+    }
   }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <i className="bi bi-person-badge text-blue-600"></i>
+          <UserCircle className="text-blue-600" size={22} />
           Personal Information
         </CardTitle>
         <CardDescription>Manage your profile information</CardDescription>
@@ -128,7 +143,7 @@ export default function ProfileForm({ onSave }: ProfileFormProps) {
               onClick={() => setIsEditing(true)}
               className="w-full gap-2"
             >
-              <i className="bi bi-pencil"></i>
+              <Pencil size={18} />
               Edit Profile
             </Button>
           ) : (
@@ -137,7 +152,7 @@ export default function ProfileForm({ onSave }: ProfileFormProps) {
                 onClick={handleSave}
                 className="flex-1 gap-2 bg-green-600 hover:bg-green-700"
               >
-                <i className="bi bi-check"></i>
+                <Check size={18} />
                 Save Changes
               </Button>
               <Button
@@ -145,7 +160,7 @@ export default function ProfileForm({ onSave }: ProfileFormProps) {
                 variant="outline"
                 className="flex-1 gap-2"
               >
-                <i className="bi bi-x"></i>
+                <X size={18} />
                 Cancel
               </Button>
             </>

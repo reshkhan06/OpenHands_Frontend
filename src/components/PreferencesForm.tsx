@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Settings, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -101,7 +102,7 @@ export default function PreferencesForm({ onSave }: PreferencesFormProps) {
             onClick={handleSave}
             className="w-full gap-2 bg-blue-600 hover:bg-blue-700"
           >
-            <i className="bi bi-check"></i>
+            <Check size={18} />
             Save Preferences
           </Button>
         </div>

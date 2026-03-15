@@ -4,10 +4,13 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
 import Logo from '@/components/Logo'
-import { login } from '@/api/auth'
+import { login, ngoLogin } from '@/api/auth'
+
+type LoginAs = 'donor' | 'ngo'
 
 export default function Login() {
   const navigate = useNavigate()
+  const [loginAs, setLoginAs] = useState<LoginAs>('donor')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -19,39 +22,37 @@ export default function Login() {
     setIsLoading(true)
 
     try {
-      // Call login API
-      const response = await login({
-        email: formData.email,
-        password: formData.password,
-      })
+      if (loginAs === 'ngo') {
+        const response = await ngoLogin({ email: formData.email, password: formData.password })
+        localStorage.setItem('access_token', response.access_token)
+        localStorage.setItem('token_type', 'bearer')
+        localStorage.setItem('user', JSON.stringify({ role: 'ngo', email: formData.email }))
+        if (formData.remember) localStorage.setItem('rememberEmail', formData.email)
+        navigate('/dashboard/ngo')
+        return
+      }
 
-      // Store token in localStorage
+      // Donor (or admin) login
+      const response = await login({ email: formData.email, password: formData.password })
       localStorage.setItem('access_token', response.access_token)
-      localStorage.setItem('token_type', response.token_type)
-
-      // Store user info if available
-      let userRole = 'user' // default role
+      localStorage.setItem('token_type', response.token_type ?? 'bearer')
+      let userRole = 'donor'
       if (response.user) {
         localStorage.setItem('user', JSON.stringify(response.user))
-        // Determine user role from response
-        userRole = response.user.role || response.user.user_type || 'user'
+        userRole = response.user.role || response.user.user_type || 'donor'
       }
+      if (formData.remember) localStorage.setItem('rememberEmail', formData.email)
 
-      // Store remember me preference
-      if (formData.remember) {
-        localStorage.setItem('rememberEmail', formData.email)
-      }
-
-      // Show success message
-      // alert('Login successful!')
-
-      // Navigate to appropriate dashboard based on user role
       if (userRole === 'admin') {
         navigate('/dashboard/admin')
-      } else if (userRole === 'ngo') {
-        navigate('/dashboard/ngo')
       } else {
-        navigate('/dashboard/user')
+        const redirect = localStorage.getItem('postLoginRedirect')
+        if (redirect) {
+          localStorage.removeItem('postLoginRedirect')
+          navigate(redirect)
+        } else {
+          navigate('/dashboard/donor')
+        }
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed'
@@ -92,6 +93,22 @@ export default function Login() {
                     {error}
                   </div>
                 )}
+                <div className="flex gap-2 p-1 bg-gray-100 rounded-lg mb-6">
+                  <button
+                    type="button"
+                    onClick={() => { setLoginAs('donor'); setError(null) }}
+                    className={`flex-1 py-2 rounded-md text-sm font-semibold transition-colors ${loginAs === 'donor' ? 'bg-white shadow text-primary' : 'text-gray-600'}`}
+                  >
+                    I'm a Donor
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setLoginAs('ngo'); setError(null) }}
+                    className={`flex-1 py-2 rounded-md text-sm font-semibold transition-colors ${loginAs === 'ngo' ? 'bg-white shadow text-primary' : 'text-gray-600'}`}
+                  >
+                    I'm an NGO
+                  </button>
+                </div>
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div>
                     <label className="block text-sm font-semibold mb-2">

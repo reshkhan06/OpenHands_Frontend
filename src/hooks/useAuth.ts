@@ -14,14 +14,14 @@ export function useAuth() {
     const role = getUserRole()
     
     const roleMapping: { [key: string]: string } = {
-      'donor': '/dashboard/user',
-      'user': '/dashboard/user',
+      'donor': '/dashboard/donor',
+      'user': '/dashboard/donor',
       'ngo_representative': '/dashboard/ngo',
       'ngo': '/dashboard/ngo',
       'admin': '/dashboard/admin',
     }
 
-    const dashboardUrl = roleMapping[role || ''] || '/dashboard/user'
+    const dashboardUrl = roleMapping[role || ''] || '/dashboard/donor'
     navigate(dashboardUrl, { replace: true })
   }, [navigate])
 
