@@ -3,16 +3,19 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 const carouselImages = [
   {
-    src: 'https://images.unsplash.com/photo-1559027615-cd4628902d4a?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
-    alt: 'Real Impact Stories'
+    src: 'https://kathleenannthompson.com/wp-content/uploads/2015/12/Hands_DollarPhoto-scaled.jpg',
+    alt: 'Hands giving - transparent giving, real impact',
+    caption: 'Your kindness makes a real impact. Every donation is tracked.'
   },
   {
     src: 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
-    alt: 'Team Collaboration'
+    alt: 'Team Collaboration',
+    caption: 'Real impact. Verified NGOs, no guesswork.'
   },
   {
     src: 'https://images.unsplash.com/photo-1593113598332-cd288d649433?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
-    alt: 'Community Support'
+    alt: 'Community Support',
+    caption: 'See exactly where your generosity goes.'
   }
 ]
 
@@ -73,6 +76,16 @@ export default function HeroCarousel() {
       >
         <ChevronRight className="w-6 h-6 text-primary" />
       </button>
+
+      {/* Caption – visible when this slide is selected */}
+      <div
+        className="absolute left-0 right-0 bottom-14 px-4 py-2 text-center transition-opacity duration-300"
+        aria-live="polite"
+      >
+        <p className="text-white text-sm font-medium drop-shadow-md bg-black/40 rounded-lg px-3 py-2 inline-block max-w-md">
+          {carouselImages[currentIndex].caption}
+        </p>
+      </div>
 
       {/* Indicators */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">

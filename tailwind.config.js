@@ -37,6 +37,13 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        theme: {
+          primary: "var(--theme-primary)",
+          secondary: "var(--theme-secondary)",
+          dark: "var(--theme-dark)",
+          light: "var(--theme-light)",
+          white: "var(--theme-white)",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
