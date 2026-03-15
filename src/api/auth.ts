@@ -99,7 +99,7 @@ export async function login(credentials: LoginRequest): Promise<AuthResponse> {
 /**
  * Verify email with token (works for both donor and NGO)
  */
-export async function verifyEmail(token: string): Promise<{ message: string }> {
+export async function verifyEmail(token: string): Promise<{ message: string; pending_admin_approval?: boolean }> {
   const response = await fetch(`${API_BASE_URL}/verify?token=${encodeURIComponent(token)}`, {
     method: 'GET',
     headers: {

@@ -18,7 +18,7 @@ export function useAuth() {
       'user': '/dashboard/donor',
       'ngo_representative': '/dashboard/ngo',
       'ngo': '/dashboard/ngo',
-      'admin': '/dashboard/admin',
+      'admin': '/admin',
     }
 
     const dashboardUrl = roleMapping[role || ''] || '/dashboard/donor'

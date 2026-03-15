@@ -11,6 +11,7 @@ export default function Verify() {
   const navigate = useNavigate()
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [message, setMessage] = useState('')
+  const [pendingAdminApproval, setPendingAdminApproval] = useState(false)
 
   useEffect(() => {
     const verifyToken = async () => {
@@ -26,11 +27,11 @@ export default function Verify() {
         const response = await verifyEmail(token)
         setStatus('success')
         setMessage(response.message || 'Email verified successfully!')
-        
-        // Redirect to login after 3 seconds
-        setTimeout(() => {
-          navigate('/login')
-        }, 3000)
+        setPendingAdminApproval(Boolean(response.pending_admin_approval))
+        // Only auto-redirect if not waiting for admin approval (donor flow)
+        if (!response.pending_admin_approval) {
+          setTimeout(() => navigate('/login'), 3000)
+        }
       } catch (err) {
         setStatus('error')
         const errorMessage = err instanceof Error ? err.message : 'Verification failed'

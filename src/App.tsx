@@ -24,8 +24,8 @@ import NgoPickupDetailPage from './pages/NgoPickupDetailPage'
 function AppContent() {
   const location = useLocation()
   
-  // Hide navbar and footer on dashboard pages
-  const isDashboardPage = ['/dashboard/user', '/dashboard/donor', '/dashboard/admin', '/dashboard/ngo'].some((p) => location.pathname === p || location.pathname.startsWith(p + '/'))
+  // Hide navbar and footer on dashboard pages and admin
+  const isDashboardPage = ['/dashboard/user', '/dashboard/donor', '/dashboard/admin', '/dashboard/ngo', '/admin'].some((p) => location.pathname === p || location.pathname.startsWith(p + '/'))
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -55,8 +55,9 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
+          <Route path="/dashboard/admin" element={<Navigate to="/admin" replace />} />
           <Route
-            path="/dashboard/admin"
+            path="/admin/*"
             element={
               <ProtectedRoute requiredRole="admin">
                 <AdminDashboard />

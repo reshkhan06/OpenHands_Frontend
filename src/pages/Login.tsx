@@ -44,7 +44,7 @@ export default function Login() {
       if (formData.remember) localStorage.setItem('rememberEmail', formData.email)
 
       if (userRole === 'admin') {
-        navigate('/dashboard/admin')
+        navigate('/admin')
       } else {
         const redirect = localStorage.getItem('postLoginRedirect')
         if (redirect) {
