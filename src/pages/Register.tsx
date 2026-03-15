@@ -3,11 +3,12 @@ import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { User, Mail, Lock, MapPin, Phone, Eye, EyeOff, Heart, UserCircle, ArrowLeft } from 'lucide-react'
+import { User, Mail, Lock, MapPin, Phone, Eye, EyeOff, Heart, Building2, ArrowLeft, CalendarDays, ShieldCheck, Sparkles, AlertCircle } from 'lucide-react'
 import Logo from '@/components/Logo'
 import DOBPicker from '@/components/DOBPicker'
 import GeoapifyAddressInput from '@/components/GeoapifyAddressInput'
 import type { ParsedAddress } from '@/components/GeoapifyAddressInput'
+import { Input } from '@/components/ui/input'
 import { signup } from '@/api/auth'
 
 type SignupRole = 'donor' | 'ngo' | null
@@ -119,34 +120,38 @@ export default function Register() {
                   <div className="mb-4 flex justify-center">
                     <Logo size="lg" />
                   </div>
-                  <h4 className="text-2xl font-bold mb-2">Create Account</h4>
-                  <p className="text-gray-600">Please select your role to continue</p>
+                  <div className="inline-flex items-center gap-2 text-primary/90 mb-2">
+                    <Sparkles className="w-5 h-5" />
+                    <span className="text-sm font-medium">Join OpenHands</span>
+                  </div>
+                  <h4 className="text-2xl font-bold mb-2">Create your account</h4>
+                  <p className="text-gray-600">Choose how you want to participate</p>
                 </div>
                 <div className="grid md:grid-cols-2 gap-6">
                   <button
                     type="button"
                     onClick={() => setSelectedRole('donor')}
-                    className="p-6 rounded-xl border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all text-left group"
+                    className="p-6 rounded-xl border-2 border-gray-200 hover:border-emerald-500 hover:bg-emerald-50/80 transition-all text-left group shadow-sm hover:shadow-md"
                   >
-                    <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                    <div className="w-14 h-14 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
                       <Heart className="w-7 h-7" />
                     </div>
-                    <h5 className="font-bold text-lg mb-2">Donor</h5>
+                    <h5 className="font-bold text-lg mb-2 text-gray-900">I'm a Donor</h5>
                     <p className="text-sm text-gray-600">
-                      Donate items. Request pickups, pay refundable deposit, and track your donations.
+                      Donate items, request pickups, and track your donations. Quick signup, verified impact.
                     </p>
                   </button>
                   <button
                     type="button"
                     onClick={() => setSelectedRole('ngo')}
-                    className="p-6 rounded-xl border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all text-left group"
+                    className="p-6 rounded-xl border-2 border-gray-200 hover:border-primary hover:bg-primary/5 transition-all text-left group shadow-sm hover:shadow-md"
                   >
-                    <div className="w-14 h-14 rounded-full bg-blue-100 text-primary flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-white transition-colors">
-                      <UserCircle className="w-7 h-7" />
+                    <div className="w-14 h-14 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-white transition-colors">
+                      <Building2 className="w-7 h-7" />
                     </div>
-                    <h5 className="font-bold text-lg mb-2">NGO</h5>
+                    <h5 className="font-bold text-lg mb-2 text-gray-900">I'm an NGO</h5>
                     <p className="text-sm text-gray-600">
-                      Receive donations. Get your organization verified and accept pickup requests from donors.
+                      Receive donations. Get verified and accept pickup requests from donors.
                     </p>
                   </button>
                 </div>
@@ -195,34 +200,35 @@ export default function Register() {
                 <p className="text-gray-600">Donate items and request pickups. Verify your email to get started.</p>
               </div>
               {error && (
-                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                  {typeof error === 'string' ? error : 'Registration failed'}
+                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-red-500" aria-hidden />
+                  <span>{typeof error === 'string' ? error : 'Registration failed'}</span>
                 </div>
               )}
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">
-                      <User className="w-4 h-4 inline mr-2" />
-                      First Name
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <User className="w-4 h-4 text-primary" />
+                      First name
                     </label>
-                    <input
+                    <Input
                       type="text"
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="rounded-lg border-gray-300 focus-visible:ring-primary h-11"
                       placeholder="Enter first name"
                       value={formData.firstName}
                       onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                       required
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">
-                      <User className="w-4 h-4 inline mr-2" />
-                      Last Name
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <User className="w-4 h-4 text-primary" />
+                      Last name
                     </label>
-                    <input
+                    <Input
                       type="text"
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="rounded-lg border-gray-300 focus-visible:ring-primary h-11"
                       placeholder="Enter last name"
                       value={formData.lastName}
                       onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
@@ -230,31 +236,31 @@ export default function Register() {
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-2">
-                    <Mail className="w-4 h-4 inline mr-2" />
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Mail className="w-4 h-4 text-primary" />
                     Email
                   </label>
-                  <input
+                  <Input
                     type="email"
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="Enter your email"
+                    className="rounded-lg border-gray-300 focus-visible:ring-primary h-11"
+                    placeholder="you@example.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     required
                   />
                 </div>
                 <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">
-                      <Lock className="w-4 h-4 inline mr-2" />
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <Lock className="w-4 h-4 text-primary" />
                       Password
                     </label>
                     <div className="relative">
-                      <input
+                      <Input
                         type={showPassword ? 'text' : 'password'}
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary pr-12"
-                        placeholder="Create a password"
+                        className="rounded-lg border-gray-300 focus-visible:ring-primary h-11 pr-11"
+                        placeholder="Min 6 characters"
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         required
@@ -262,21 +268,22 @@ export default function Register() {
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
                       >
                         {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">
-                      <Lock className="w-4 h-4 inline mr-2" />
-                      Confirm Password
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <Lock className="w-4 h-4 text-primary" />
+                      Confirm password
                     </label>
                     <div className="relative">
-                      <input
+                      <Input
                         type={showConfirmPassword ? 'text' : 'password'}
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary pr-12"
+                        className="rounded-lg border-gray-300 focus-visible:ring-primary h-11 pr-11"
                         placeholder="Confirm password"
                         value={formData.confirmPassword}
                         onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
@@ -285,7 +292,8 @@ export default function Register() {
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                       >
                         {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
@@ -294,21 +302,28 @@ export default function Register() {
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">Gender</label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <User className="w-4 h-4 text-primary" />
+                      Gender
+                    </label>
                     <select
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 border-gray-300"
                       value={formData.gender}
                       onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
                       required
                     >
-                      <option value="">Select Gender</option>
+                      <option value="">Select gender</option>
                       <option>Male</option>
                       <option>Female</option>
                       <option>Other</option>
                     </select>
                   </div>
-                  <div>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <CalendarDays className="w-4 h-4 text-primary" />
+                      Date of birth
+                    </label>
                     <DOBPicker
                       value={formData.dob}
                       onChange={(date) => setFormData({ ...formData, dob: date })}
@@ -317,9 +332,9 @@ export default function Register() {
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4 overflow-visible">
-                  <div className="md:col-span-2 overflow-visible">
-                    <label className="block text-sm font-semibold mb-2">
-                      <MapPin className="w-4 h-4 inline mr-2" />
+                  <div className="md:col-span-2 overflow-visible space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <MapPin className="w-4 h-4 text-primary" />
                       Location
                     </label>
                     <div className="relative z-[100] overflow-visible">
@@ -334,19 +349,19 @@ export default function Register() {
                         required
                         minLength={2}
                         maxLength={300}
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
                       />
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">
-                      <Phone className="w-4 h-4 inline mr-2" />
-                      Contact Number
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <Phone className="w-4 h-4 text-primary" />
+                      Contact number
                     </label>
-                    <input
+                    <Input
                       type="tel"
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="Enter contact number"
+                      className="rounded-lg border-gray-300 focus-visible:ring-primary h-11"
+                      placeholder="10-digit mobile"
                       value={formData.contact}
                       onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
                       required
@@ -354,60 +369,64 @@ export default function Register() {
                   </div>
                 </div>
 
-                <div>
-                    <label className="block text-sm font-semibold mb-2">
-                      <Heart className="w-4 h-4 inline mr-2" />
-                      Preferred Cause (optional)
-                    </label>
-                    <select
-                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      value={formData.preferredCause}
-                      onChange={(e) => setFormData({ ...formData, preferredCause: e.target.value })}
-                    >
-                      <option value="">Select a cause</option>
-                      <option value="education">Education</option>
-                      <option value="health">Health & Medical</option>
-                      <option value="food">Food Security</option>
-                      <option value="environment">Environment</option>
-                      <option value="children">Children</option>
-                      <option value="women">Women Empowerment</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <Heart className="w-4 h-4 text-primary" />
+                    Preferred cause <span className="text-gray-400 font-normal">(optional)</span>
+                  </label>
+                  <select
+                    className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 border-gray-300"
+                    value={formData.preferredCause}
+                    onChange={(e) => setFormData({ ...formData, preferredCause: e.target.value })}
+                  >
+                    <option value="">Select a cause</option>
+                    <option value="education">Education</option>
+                    <option value="health">Health & Medical</option>
+                    <option value="food">Food Security</option>
+                    <option value="environment">Environment</option>
+                    <option value="children">Children</option>
+                    <option value="women">Women Empowerment</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
 
-                <div className="flex items-start gap-2">
+                <div className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50/50 p-4">
                   <input
                     type="checkbox"
                     id="terms"
                     checked={formData.terms}
                     onChange={(e) => setFormData({ ...formData, terms: e.target.checked })}
-                    className="mt-1 w-4 h-4"
+                    className="mt-1 w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
                     required
                   />
-                  <label htmlFor="terms" className="text-sm">
-                    I agree to the{' '}
-                    <Link to="/terms" target="_blank" className="text-primary hover:underline">
-                      Terms & Conditions
-                    </Link>{' '}
-                    and{' '}
-                    <Link to="/privacy" target="_blank" className="text-primary hover:underline">
-                      Privacy Policy
-                    </Link>
+                  <label htmlFor="terms" className="text-sm text-gray-700 flex items-start gap-2">
+                    <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" aria-hidden />
+                    <span>
+                      I agree to the{' '}
+                      <Link to="/terms" target="_blank" className="text-primary hover:underline font-medium">
+                        Terms & Conditions
+                      </Link>{' '}
+                      and{' '}
+                      <Link to="/privacy" target="_blank" className="text-primary hover:underline font-medium">
+                        Privacy Policy
+                      </Link>
+                    </span>
                   </label>
                 </div>
-                <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
-                  {isLoading ? 'Registering...' : 'Register as Donor'}
+                <Button type="submit" className="w-full h-11 text-base font-semibold" size="lg" disabled={isLoading}>
+                  {isLoading ? 'Creating account…' : 'Create donor account'}
                 </Button>
               </form>
               <div className="text-center mt-6 space-y-2">
-                <p className="text-sm">
+                <p className="text-sm text-gray-600">
                   Already have an account?{' '}
-                  <Link to="/login" className="text-primary hover:underline">
+                  <Link to="/login" className="text-primary font-medium hover:underline inline-flex items-center gap-1">
                     Login here
                   </Link>
                 </p>
-                <Link to="/" className="text-sm text-gray-600 hover:underline">
-                  Back to Home
+                <Link to="/" className="text-sm text-gray-500 hover:text-primary hover:underline inline-flex items-center gap-1 justify-center">
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to home
                 </Link>
               </div>
             </CardContent>

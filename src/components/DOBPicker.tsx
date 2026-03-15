@@ -1,5 +1,3 @@
-import { Calendar } from 'lucide-react'
-
 interface DOBPickerProps {
   value: string
   onChange: (date: string) => void
@@ -52,10 +50,6 @@ export default function DOBPicker({ value, onChange, required = false }: DOBPick
 
   return (
     <div>
-      <label className="block text-sm font-semibold mb-2">
-        <Calendar className="w-4 h-4 inline mr-2" />
-        Date of Birth
-      </label>
       <div className="grid grid-cols-3 gap-3">
         {/* Day Dropdown */}
         <select
