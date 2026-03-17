@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search'
-const USER_AGENT = 'OpenHandsDonation/1.0 (contact@example.com)'
 const MIN_QUERY_LENGTH = 2
 const DEBOUNCE_MS = 400
 const LIMIT = 8
@@ -43,11 +42,9 @@ function fetchSuggestions(query: string): Promise<NominatimResult[]> {
     addressdetails: '1',
     limit: String(LIMIT),
   })
-  return fetch(`${NOMINATIM_URL}?${params}`, {
-    method: 'GET',
-    headers: { 'Accept-Language': 'en', 'User-Agent': USER_AGENT },
-  })
-    .then((res) => res.json())
+  // Browsers disallow setting `User-Agent` header; keep headers minimal or proxy via backend.
+  return fetch(`${NOMINATIM_URL}?${params}`, { method: 'GET', headers: { 'Accept-Language': 'en' } })
+    .then((res) => (res.ok ? res.json() : []))
     .then((data: NominatimResult[] | { error?: string }) => {
       if (Array.isArray(data)) return data
       return []

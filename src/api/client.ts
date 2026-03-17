@@ -1,8 +1,8 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-export function getAuthHeaders(): HeadersInit {
+export function getAuthHeaders(contentType: 'json' | 'none' = 'json'): HeadersInit {
   const token = localStorage.getItem('access_token');
-  const headers: HeadersInit = { 'Content-Type': 'application/json' };
+  const headers: HeadersInit = contentType === 'json' ? { 'Content-Type': 'application/json' } : {};
   if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
   return headers;
 }
@@ -22,9 +22,10 @@ export async function apiRequest<T>(
 ): Promise<T> {
   let res: Response;
   try {
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
     res = await fetch(`${API_BASE}${path}`, {
       ...options,
-      headers: { ...getAuthHeaders(), ...(options.headers as Record<string, string>) },
+      headers: { ...getAuthHeaders(isFormData ? 'none' : 'json'), ...(options.headers as Record<string, string>) },
     });
   } catch (e) {
     throw new Error(toUserFriendlyMessage(e));

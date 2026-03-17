@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { createPickup, type PickupCreateBody } from '@/api/pickups'
+import { createPickup, createPickupWithImage, type PickupCreateBody } from '@/api/pickups'
 import { confirmPayment } from '@/api/payments'
 import { listVerifiedNGOs } from '@/api/ngos'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import LocationInput from '@/components/LocationInput'
+import { Clock } from 'lucide-react'
 
 declare global {
   interface Window {
@@ -26,9 +27,16 @@ export function NewPickupPage() {
   const [ngos, setNgos] = useState<{ ngo_id: number; ngo_name: string; city: string; state: string }[]>([])
   const [form, setForm] = useState<PickupCreateBody>({ ngo_id: 0, pickup_address: '', items_description: '' })
   const [donationType, setDonationType] = useState('')
-  const [quantity, setQuantity] = useState('')
+  const [items, setItems] = useState<{ name: string; quantity: string; expiration: string }[]>([
+    { name: '', quantity: '', expiration: '' },
+  ])
+  const [scheduledDate, setScheduledDate] = useState('')
+  const [scheduledTime, setScheduledTime] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [imageError, setImageError] = useState<string | null>(null)
   const [paymentStep, setPaymentStep] = useState<PaymentStep>(null)
   const navigate = useNavigate()
 
@@ -49,18 +57,69 @@ export function NewPickupPage() {
     e.preventDefault()
     setError(null)
     setPaymentStep(null)
+    setImageError(null)
     setLoading(true)
     try {
-      const descriptionParts: string[] = []
-      if (donationType) descriptionParts.push(`Type: ${donationType}`)
-      if (quantity) descriptionParts.push(`Quantity: ${quantity}`)
-      if (form.items_description) descriptionParts.push(`Details: ${form.items_description}`)
-
-      const res = await createPickup({
-        ...form,
-        items_description: descriptionParts.length ? descriptionParts.join(' | ') : undefined,
-        scheduled_time: form.scheduled_time || undefined,
+      const trimmedType = donationType.trim()
+      const filledRows = items.filter((r) => {
+        const hasNameOrQty = r.name.trim().length > 0 || r.quantity.trim().length > 0
+        const hasExp = r.expiration.trim().length > 0
+        return donationType === 'Food'
+          ? hasNameOrQty || hasExp
+          : hasNameOrQty
       })
+      if (!trimmedType || !scheduledDate || !scheduledTime || filledRows.length === 0) {
+        const msg =
+          'Please fill donation type, at least one item row (name, quantity & expiration), and both scheduled date and time.'
+        setError(msg)
+        toast.error(msg)
+        return
+      }
+
+      const scheduled = new Date(`${scheduledDate}T${scheduledTime}`)
+      const now = new Date()
+      if (scheduled.getTime() < now.getTime()) {
+        const msg = 'Scheduled time must be in the future.'
+        setError(msg)
+        toast.error(msg)
+        return
+      }
+
+      const descriptionParts: string[] = []
+      descriptionParts.push(`Type: ${trimmedType}`)
+      const itemLines = filledRows.map((r, idx) => {
+        const name = r.name.trim() || `Item ${idx + 1}`
+        const qty = r.quantity.trim() || '-'
+        const exp = r.expiration.trim() || '-'
+        return donationType === 'Food'
+          ? `${name}: Qty=${qty}; Exp=${exp}`
+          : `${name}: Qty=${qty}`
+      })
+      descriptionParts.push(`Items: ${itemLines.join(' | ')}`)
+
+      const payload: PickupCreateBody = {
+        ...form,
+        scheduled_time: scheduled.toISOString(),
+        items_description: descriptionParts.length ? descriptionParts.join(' | ') : undefined,
+      }
+
+      let res
+      if (imageFile) {
+        const allowed = ['image/png', 'image/jpeg', 'image/webp']
+        if (!allowed.includes(imageFile.type)) {
+          const msg = 'Only PNG, JPG/JPEG, or WEBP images are allowed'
+          setImageError(msg)
+          throw new Error(msg)
+        }
+        if (imageFile.size > 5 * 1024 * 1024) {
+          const msg = 'Image must be 5MB or smaller'
+          setImageError(msg)
+          throw new Error(msg)
+        }
+        res = await createPickupWithImage(payload, imageFile)
+      } else {
+        res = await createPickup(payload)
+      }
       const { pickup, payment } = res
       const keyId = payment.key_id ?? null
       const status = payment.status ?? 'pending'
@@ -122,6 +181,16 @@ export function NewPickupPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreview(null)
+      return
+    }
+    const url = URL.createObjectURL(imageFile)
+    setImagePreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [imageFile])
 
   const goToPickup = (pickupId: number) => {
     setPaymentStep(null)
@@ -230,10 +299,11 @@ export function NewPickupPage() {
           style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px' }}
         />
         <label>
-          <span style={{ display: 'block', marginBottom: '4px', fontWeight: 600 }}>Donation type</span>
+          <span style={{ display: 'block', marginBottom: '4px', fontWeight: 600 }}>Donation type *</span>
           <select
             value={donationType}
             onChange={(e) => setDonationType(e.target.value)}
+            required
             style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px' }}
           >
             <option value="">Select donation type</option>
@@ -242,32 +312,185 @@ export function NewPickupPage() {
             <option value="Books">Books</option>
           </select>
         </label>
+        <div>
+          <span style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>
+            Items ({donationType === 'Food' ? 'name, quantity & expiration' : 'name & quantity'}) *
+          </span>
+          <div
+            style={{
+              border: '1px solid #d1d5db',
+              borderRadius: '10px',
+              overflow: 'hidden',
+            }}
+          >
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+              <thead style={{ background: '#f9fafb' }}>
+                <tr>
+                  <th
+                    style={{
+                      padding: '8px 10px',
+                      textAlign: 'left',
+                      borderBottom: '1px solid #e5e7eb',
+                    }}
+                  >
+                    Name
+                  </th>
+                  <th
+                    style={{
+                      padding: '8px 10px',
+                      textAlign: 'left',
+                      borderBottom: '1px solid #e5e7eb',
+                    }}
+                  >
+                    Quantity
+                  </th>
+                  {donationType === 'Food' && (
+                    <th
+                      style={{
+                        padding: '8px 10px',
+                        textAlign: 'left',
+                        borderBottom: '1px solid #e5e7eb',
+                      }}
+                    >
+                      Expiration
+                    </th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((row, idx) => (
+                  <tr key={idx}>
+                    <td style={{ padding: '6px 8px', borderTop: '1px solid #f3f4f6' }}>
+                      <input
+                        value={row.name}
+                        onChange={(e) =>
+                          setItems((prev) =>
+                            prev.map((r, i) =>
+                              i === idx ? { ...r, name: e.target.value } : r
+                            )
+                          )
+                        }
+                        placeholder="e.g. Rice, Jackets"
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          borderRadius: '6px',
+                          border: '1px solid #d1d5db',
+                        }}
+                      />
+                    </td>
+                    <td style={{ padding: '6px 8px', borderTop: '1px solid #f3f4f6' }}>
+                      <input
+                        value={row.quantity}
+                        onChange={(e) =>
+                          setItems((prev) =>
+                            prev.map((r, i) =>
+                              i === idx ? { ...r, quantity: e.target.value } : r
+                            )
+                          )
+                        }
+                        placeholder="e.g. 5 kg, 10 items"
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          borderRadius: '6px',
+                          border: '1px solid #d1d5db',
+                        }}
+                      />
+                    </td>
+                    {donationType === 'Food' && (
+                      <td style={{ padding: '6px 8px', borderTop: '1px solid #f3f4f6' }}>
+                        <input
+                          type="date"
+                          value={row.expiration}
+                          onChange={(e) =>
+                            setItems((prev) =>
+                              prev.map((r, i) =>
+                                i === idx ? { ...r, expiration: e.target.value } : r
+                              )
+                            )
+                          }
+                          min={new Date().toISOString().slice(0, 10)}
+                          style={{
+                            width: '100%',
+                            padding: '8px 10px',
+                            borderRadius: '6px',
+                            border: '1px solid #d1d5db',
+                          }}
+                        />
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <button
+            type="button"
+            onClick={() => setItems((prev) => [...prev, { name: '', quantity: '', expiration: '' }])}
+            style={{
+              marginTop: '8px',
+              fontSize: '0.85rem',
+              padding: '6px 10px',
+              borderRadius: '8px',
+              border: '1px dashed #9ca3af',
+              background: '#f9fafb',
+              color: '#374151',
+              cursor: 'pointer',
+            }}
+          >
+            + Add item row
+          </button>
+          <p style={{ marginTop: '6px', fontSize: '0.8rem', color: '#6b7280' }}>
+            Add one or more rows with quantity and expiration details for your donation items.
+          </p>
+        </div>
         <label>
-          <span style={{ display: 'block', marginBottom: '4px', fontWeight: 600 }}>Quantity / Amount (optional)</span>
+          <span style={{ display: 'block', marginBottom: '4px', fontWeight: 600 }}>Scheduled date *</span>
           <input
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            placeholder="e.g. 5 kg, 10 items, ₹500"
+            type="date"
+            value={scheduledDate}
+            onChange={(e) => setScheduledDate(e.target.value)}
+            min={new Date().toISOString().slice(0, 10)}
+            required
             style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px' }}
           />
         </label>
         <label>
-          <span style={{ display: 'block', marginBottom: '4px', fontWeight: 600 }}>Items description (optional)</span>
-          <textarea
-            value={form.items_description || ''}
-            onChange={(e) => setForm({ ...form, items_description: e.target.value })}
-            rows={3}
+          <span style={{ marginBottom: '4px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Clock size={16} style={{ color: '#6b7280' }} />
+            <span>Scheduled time *</span>
+          </span>
+          <input
+            type="time"
+            value={scheduledTime}
+            onChange={(e) => setScheduledTime(e.target.value)}
+            required
             style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px' }}
           />
         </label>
         <label>
-          <span style={{ display: 'block', marginBottom: '4px', fontWeight: 600 }}>Scheduled time (optional)</span>
+          <span style={{ display: 'block', marginBottom: '4px', fontWeight: 600 }}>Donation image (optional)</span>
           <input
-            type="datetime-local"
-            value={form.scheduled_time || ''}
-            onChange={(e) => setForm({ ...form, scheduled_time: e.target.value })}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={(e) => {
+              const f = e.target.files?.[0] ?? null
+              setImageFile(f)
+              setImageError(null)
+            }}
             style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px' }}
           />
+          {imageError && <div style={{ marginTop: '8px', color: '#b91c1c', fontSize: '0.85rem' }}>{imageError}</div>}
+          {imagePreview && (
+            <div style={{ marginTop: '10px' }}>
+              <img
+                src={imagePreview}
+                alt="Donation preview"
+                style={{ width: '100%', maxHeight: 220, objectFit: 'cover', borderRadius: 12, border: '1px solid #e5e7eb' }}
+              />
+            </div>
+          )}
         </label>
         <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>A refundable deposit (e.g. ₹100) may be required. You will pay after submitting this form and the amount will be refunded after the NGO completes the pickup.</p>
         <button type="submit" disabled={loading} style={{ padding: '12px 24px', borderRadius: '8px', border: 'none', background: '#059669', color: 'white', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer' }}>

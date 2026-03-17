@@ -67,6 +67,19 @@ export function createPickup(body: PickupCreateBody): Promise<CreatePickupRespon
   });
 }
 
+export function createPickupWithImage(body: PickupCreateBody, imageFile: File): Promise<CreatePickupResponse> {
+  const fd = new FormData();
+  fd.append('image', imageFile);
+  fd.append('ngo_id', String(body.ngo_id));
+  fd.append('pickup_address', body.pickup_address);
+  if (body.scheduled_time) fd.append('scheduled_time', body.scheduled_time);
+  if (body.items_description) fd.append('items_description', body.items_description);
+  return apiRequest<CreatePickupResponse>('/pickups/with-image', {
+    method: 'POST',
+    body: fd as any,
+  });
+}
+
 export function listPickups(status?: string): Promise<PickupListItem[]> {
   const q = status ? `?status=${encodeURIComponent(status)}` : '';
   return apiRequest<PickupListItem[]>(`/pickups${q}`);

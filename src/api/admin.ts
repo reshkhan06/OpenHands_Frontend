@@ -22,6 +22,8 @@ export interface AdminUserRow {
   created_at: string | null;
 }
 
+export interface AdminUserDetail extends AdminUserRow {}
+
 export interface AdminNGORow {
   ngo_id: number;
   ngo_name: string;
@@ -42,6 +44,30 @@ export interface AdminPickupRow {
   created_at: string | null;
 }
 
+export interface AdminNGODetail extends AdminNGORow {
+  registration_number: string;
+  ngo_type: string;
+  address: string;
+  pincode: string;
+  mission_statement: string;
+  bank_name: string;
+  account_number: string;
+  ifsc_code: string;
+  website_url?: string | null;
+  certificate_path?: string | null;
+}
+
+export interface AdminFeedbackRow {
+  feedback_id: number;
+  name: string;
+  email: string;
+  category: string;
+  rating: number;
+  follow_up: boolean;
+  message: string;
+  created_at: string | null;
+}
+
 export function getAdminDashboard(): Promise<AdminDashboardStats> {
   return apiRequest<AdminDashboardStats>('/admin/dashboard');
 }
@@ -55,6 +81,10 @@ export function getAdminUsers(params?: { role?: string; search?: string; is_acti
   return apiRequest<AdminUserRow[]>(`/admin/users${q}`);
 }
 
+export function getAdminUserDetail(userId: number): Promise<AdminUserDetail> {
+  return apiRequest<AdminUserDetail>(`/admin/users/${userId}`);
+}
+
 export function updateAdminUser(userId: number, body: { role?: string; is_active?: boolean }): Promise<{ user_id: number; role: string; is_active: boolean }> {
   return apiRequest(`/admin/users/${userId}`, {
     method: 'PATCH',
@@ -65,6 +95,10 @@ export function updateAdminUser(userId: number, body: { role?: string; is_active
 export function getAdminNGOs(is_verified?: boolean): Promise<AdminNGORow[]> {
   const q = is_verified !== undefined ? `?is_verified=${is_verified}` : '';
   return apiRequest<AdminNGORow[]>(`/admin/ngos${q}`);
+}
+
+export function getAdminNGODetail(ngoId: number): Promise<AdminNGODetail> {
+  return apiRequest<AdminNGODetail>(`/admin/ngos/${ngoId}`);
 }
 
 export function updateAdminNGO(ngoId: number, body: { is_verified?: boolean }): Promise<{ ngo_id: number; is_verified: boolean }> {
@@ -98,4 +132,8 @@ export function updateAdminConfig(body: { deposit_amount_paise?: number }): Prom
     method: 'PUT',
     body: JSON.stringify(body),
   });
+}
+
+export function getAdminFeedbacks(limit: number = 100): Promise<AdminFeedbackRow[]> {
+  return apiRequest<AdminFeedbackRow[]>(`/admin/feedbacks?limit=${limit}`);
 }

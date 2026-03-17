@@ -28,15 +28,33 @@ export default function Register() {
     confirmPassword: '',
     dob: '',
     gender: '',
-    location: '',
+    address: '',
+    city: '',
+    state: '',
+    pincode: '',
     contact: '',
-    preferredCause: '',
     terms: false,
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+
+    const location = [formData.address, formData.city, formData.state, formData.pincode].filter(Boolean).join(', ')
+
+    const nameRegex = /^[A-Za-z\\s]+$/
+    if (!nameRegex.test(formData.firstName.trim())) {
+      const msg = 'First name must contain only letters and spaces.'
+      setError(msg)
+      toast.error(msg)
+      return
+    }
+    if (!nameRegex.test(formData.lastName.trim())) {
+      const msg = 'Last name must contain only letters and spaces.'
+      setError(msg)
+      toast.error(msg)
+      return
+    }
 
     if (formData.password !== formData.confirmPassword) {
       const msg = 'Passwords do not match.'
@@ -66,7 +84,7 @@ export default function Register() {
         email: formData.email,
         password: formData.password,
         contact_number: formData.contact,
-        location: formData.location,
+        location,
         gender: formData.gender || 'Other',
         role: 'donor',
         dob: formData.dob || undefined,
@@ -101,9 +119,11 @@ export default function Register() {
       confirmPassword: '',
       dob: '',
       gender: '',
-      location: '',
+      address: '',
+      city: '',
+      state: '',
+      pincode: '',
       contact: '',
-      preferredCause: '',
       terms: false,
     })
   }
@@ -335,15 +355,20 @@ export default function Register() {
                   <div className="md:col-span-2 overflow-visible space-y-2">
                     <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                       <MapPin className="w-4 h-4 text-primary" />
-                      Location
+                      Street address
                     </label>
                     <div className="relative z-[100] overflow-visible">
                       <GeoapifyAddressInput
-                        value={formData.location}
-                        onChange={(v) => setFormData((prev) => ({ ...prev, location: v }))}
+                        value={formData.address}
+                        onChange={(v) => setFormData((prev) => ({ ...prev, address: v }))}
                         onAddressSelect={(parsed: ParsedAddress) => {
-                          const full = [parsed.streetAddress, parsed.city, parsed.state, parsed.pincode].filter(Boolean).join(', ')
-                          setFormData((prev) => ({ ...prev, location: full }))
+                          setFormData((prev) => ({
+                            ...prev,
+                            address: parsed.streetAddress,
+                            city: parsed.city,
+                            state: parsed.state,
+                            pincode: parsed.pincode,
+                          }))
                         }}
                         placeholder="Start typing address (city, pincode) — select to auto-fill"
                         required
@@ -352,6 +377,51 @@ export default function Register() {
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
                       />
                     </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <Building2 className="w-4 h-4 text-primary" />
+                      City
+                    </label>
+                    <Input
+                      type="text"
+                      className="rounded-lg border-gray-300 focus-visible:ring-primary h-11"
+                      placeholder="Auto-filled from address"
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <MapPin className="w-4 h-4 text-primary" />
+                      State
+                    </label>
+                    <Input
+                      type="text"
+                      className="rounded-lg border-gray-300 focus-visible:ring-primary h-11"
+                      placeholder="Auto-filled from address"
+                      value={formData.state}
+                      onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <MapPin className="w-4 h-4 text-primary" />
+                      Pincode
+                    </label>
+                    <Input
+                      required
+                      maxLength={6}
+                      pattern="[0-9]{6}"
+                      className="rounded-lg border-gray-300 focus-visible:ring-primary h-11"
+                      value={formData.pincode}
+                      onChange={(e) =>
+                        setFormData({ ...formData, pincode: e.target.value.replace(/\\D/g, '').slice(0, 6) })
+                      }
+                      placeholder="6 digits"
+                    />
                   </div>
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -367,27 +437,6 @@ export default function Register() {
                       required
                     />
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    <Heart className="w-4 h-4 text-primary" />
-                    Preferred cause <span className="text-gray-400 font-normal">(optional)</span>
-                  </label>
-                  <select
-                    className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 border-gray-300"
-                    value={formData.preferredCause}
-                    onChange={(e) => setFormData({ ...formData, preferredCause: e.target.value })}
-                  >
-                    <option value="">Select a cause</option>
-                    <option value="education">Education</option>
-                    <option value="health">Health & Medical</option>
-                    <option value="food">Food Security</option>
-                    <option value="environment">Environment</option>
-                    <option value="children">Children</option>
-                    <option value="women">Women Empowerment</option>
-                    <option value="other">Other</option>
-                  </select>
                 </div>
 
                 <div className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50/50 p-4">

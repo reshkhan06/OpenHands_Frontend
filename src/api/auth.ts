@@ -249,6 +249,8 @@ export interface NGOLoginResponse {
   access_token: string;
 }
 
+export type FieldErrors<T extends string = string> = Partial<Record<T, string>>;
+
 function parseApiError(detail: unknown): string {
   if (typeof detail === 'string') return detail;
   if (Array.isArray(detail)) {
@@ -259,10 +261,23 @@ function parseApiError(detail: unknown): string {
   return 'NGO registration failed';
 }
 
+function parsePydanticFieldErrors(detail: unknown): FieldErrors {
+  if (!Array.isArray(detail)) return {};
+  const out: FieldErrors = {};
+  for (const d of detail as Array<{ msg?: string; loc?: unknown[] }>) {
+    const loc = Array.isArray(d.loc) ? d.loc : [];
+    const field = loc[0] === 'body' && typeof loc[1] === 'string' ? loc[1] : undefined;
+    if (field && !out[field]) out[field] = d.msg || 'Invalid value';
+  }
+  return out;
+}
+
 /**
  * Register new NGO (receive donations)
  */
-export async function ngoRegister(data: NGORegisterRequest): Promise<{ ngo_id: number; email: string }> {
+export async function ngoRegister(
+  data: NGORegisterRequest
+): Promise<{ ngo_id: number; email: string; fieldErrors?: FieldErrors<keyof NGORegisterRequest> }> {
   const payload = {
     ...data,
     pincode: String(data.pincode ?? ''),
@@ -277,9 +292,49 @@ export async function ngoRegister(data: NGORegisterRequest): Promise<{ ngo_id: n
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(parseApiError(err.detail));
+    const e = new Error(parseApiError(err.detail)) as Error & {
+      fieldErrors?: FieldErrors<keyof NGORegisterRequest>;
+    };
+    e.fieldErrors = parsePydanticFieldErrors(err.detail) as FieldErrors<keyof NGORegisterRequest>;
+    throw e;
   }
   return res.json();
+}
+
+export async function ngoRegisterWithCertificate(
+  data: NGORegisterRequest,
+  certificateFile: File
+): Promise<{ ngo_id: number; email: string; fieldErrors?: FieldErrors<keyof NGORegisterRequest> }> {
+  const fd = new FormData()
+  fd.append('certificate', certificateFile)
+  fd.append('ngo_name', data.ngo_name)
+  fd.append('registration_number', data.registration_number)
+  fd.append('ngo_type', data.ngo_type)
+  fd.append('email', data.email)
+  if (data.website_url) fd.append('website_url', data.website_url)
+  fd.append('address', data.address)
+  fd.append('city', data.city)
+  fd.append('state', data.state)
+  fd.append('pincode', String(data.pincode ?? ''))
+  fd.append('mission_statement', String(data.mission_statement ?? '').trim())
+  fd.append('bank_name', data.bank_name)
+  fd.append('account_number', String(data.account_number ?? ''))
+  fd.append('ifsc_code', String(data.ifsc_code ?? '').toUpperCase())
+  fd.append('password', data.password)
+
+  const res = await fetch(`${API_BASE_URL}/ngo/register-with-certificate`, {
+    method: 'POST',
+    body: fd,
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    const e = new Error(parseApiError(err.detail)) as Error & {
+      fieldErrors?: FieldErrors<keyof NGORegisterRequest>
+    }
+    e.fieldErrors = parsePydanticFieldErrors(err.detail) as FieldErrors<keyof NGORegisterRequest>
+    throw e
+  }
+  return res.json()
 }
 
 /**

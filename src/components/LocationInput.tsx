@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search'
-const USER_AGENT = 'OpenHandsDonation/1.0 (contact@openhands.example.com)'
 const MIN_QUERY_LENGTH = 3
 const DEBOUNCE_MS = 400
 
@@ -36,10 +35,11 @@ function fetchSuggestions(query: string): Promise<LocationSuggestion[]> {
     addressdetails: '1',
     limit: '6',
   })
-  return fetch(`${NOMINATIM_URL}?${params}`, {
-    headers: { 'Accept-Language': 'en', 'User-Agent': USER_AGENT },
-  })
-    .then((res) => res.json())
+  // Note: Browsers disallow setting the `User-Agent` header; attempting it causes fetch to fail.
+  // Nominatim still works without custom User-Agent in client-side apps; for strict compliance,
+  // proxy this request through your backend and set a proper User-Agent there.
+  return fetch(`${NOMINATIM_URL}?${params}`, { headers: { 'Accept-Language': 'en' } })
+    .then((res) => (res.ok ? res.json() : []))
     .then((data: LocationSuggestion[]) => data || [])
     .catch(() => [])
 }

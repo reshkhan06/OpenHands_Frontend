@@ -1,7 +1,8 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronDown, UserCircle, Settings, LogOut } from 'lucide-react'
-import { clearAuthData, getCurrentUser } from '@/api/auth'
+import { clearAuthData, getCurrentUser, getUserRole } from '@/api/auth'
+import { getNGOProfile } from '@/api/ngos'
 
 interface UserProfileDropdownProps {
   onProfileClick?: (page: string) => void
@@ -9,8 +10,8 @@ interface UserProfileDropdownProps {
 
 export default function UserProfileDropdown({ onProfileClick }: UserProfileDropdownProps) {
   const [showDropdown, setShowDropdown] = React.useState(false)
+  const [user, setUser] = React.useState<any>(() => getCurrentUser())
   const navigate = useNavigate()
-  const user = getCurrentUser()
 
   const handleLogout = () => {
     clearAuthData()
@@ -21,11 +22,55 @@ export default function UserProfileDropdown({ onProfileClick }: UserProfileDropd
     setShowDropdown(false)
     if (onProfileClick) {
       onProfileClick(page)
+      return
+    }
+    // Fallback navigation when used outside dashboards (e.g. in main navbar)
+    const role = getUserRole()
+    if (role === 'admin') {
+      navigate('/admin')
+    } else if (role === 'ngo') {
+      navigate('/dashboard/ngo')
+    } else {
+      navigate('/dashboard/donor')
     }
   }
 
-  const userName = user?.name || user?.email || 'User'
-  const userInitial = userName.charAt(0).toUpperCase()
+  // For NGO users, prefer ngo_name; fetch it once if missing
+  React.useEffect(() => {
+    const role = getUserRole()
+    if (role !== 'ngo') return
+    if (user && user.ngo_name) return
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        const profile = await getNGOProfile()
+        if (cancelled) return
+        const updated = { ...(user || {}), role: 'ngo', ngo_name: profile.ngo_name, email: profile.email }
+        setUser(updated)
+        // Persist for future reads
+        localStorage.setItem('user', JSON.stringify(updated))
+      } catch {
+        // Ignore NGO profile load errors in dropdown
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [user])
+
+  const fullName =
+    user && (user.fname || user.lname)
+      ? `${user.fname ?? ''} ${user.lname ?? ''}`.trim()
+      : undefined
+  const displayName =
+    user?.ngo_name ||
+    fullName ||
+    user?.name ||
+    user?.email ||
+    'User'
+  const userInitial = displayName.charAt(0).toUpperCase()
 
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}>
@@ -34,20 +79,20 @@ export default function UserProfileDropdown({ onProfileClick }: UserProfileDropd
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '8px',
-          padding: '8px 12px',
+          gap: '10px',
+          padding: '6px 10px',
           background: 'white',
-          border: 'none',
-          borderRadius: '12px',
+          border: '1px solid #e5e7eb',
+          borderRadius: '999px',
           cursor: 'pointer',
-          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
+          boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
         }}
       >
         <div
           style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '10px',
+            width: '28px',
+            height: '28px',
+            borderRadius: '999px',
             background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
             display: 'flex',
             alignItems: 'center',
@@ -59,10 +104,9 @@ export default function UserProfileDropdown({ onProfileClick }: UserProfileDropd
         >
           {userInitial}
         </div>
-        <div style={{ display: 'block' }}>
-          <span style={{ fontWeight: 500, fontSize: '0.9rem', color: '#1e293b', display: 'block' }}>{userName}</span>
-          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>View profile</span>
-        </div>
+        <span style={{ fontWeight: 500, fontSize: '0.9rem', color: '#1e293b', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {displayName}
+        </span>
         <ChevronDown
           size={18}
           style={{
@@ -107,8 +151,8 @@ export default function UserProfileDropdown({ onProfileClick }: UserProfileDropd
                 {userInitial}
               </div>
               <div>
-                <p style={{ margin: 0, fontWeight: 600, color: '#1e293b', fontSize: '0.95rem' }}>{userName}</p>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>{user?.email || 'user@example.com'}</p>
+                <p style={{ margin: 0, fontWeight: 600, color: '#1e293b', fontSize: '0.95rem' }}>{displayName}</p>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>{user?.email || ''}</p>
               </div>
             </div>
           </div>

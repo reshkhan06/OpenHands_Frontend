@@ -14,7 +14,6 @@ import {
   Search,
   CheckCircle,
   Building2,
-  Tags,
   Megaphone,
   Lock,
   Key,
@@ -148,15 +147,6 @@ export default function DonorDashboard({ initialPage = 'dashboard' }: DonorDashb
   const totalDonations = pickups.length
 
   const ngosSupported = new Set(pickups.map((p) => p.ngo_id)).size
-  const causeAreasCount = (() => {
-    const types = new Set<string>()
-    pickups.forEach((p) => {
-      const desc = p.items_description || ''
-      const match = desc.match(/Type:\s*([^|]+)/)
-      if (match) types.add(match[1].trim())
-    })
-    return types.size
-  })()
 
   const mapPickupToDonationItem = (p: PickupListItem): DonationItem => {
     const status: DonationItem['status'] =
@@ -571,30 +561,6 @@ export default function DonorDashboard({ initialPage = 'dashboard' }: DonorDashb
                 </div>
                 <div style={{ fontSize: '2rem', fontWeight: 800, color: '#065f46', lineHeight: 1.2 }}>{ngosSupported}</div>
                 <div style={{ fontSize: '0.875rem', color: '#047857', fontWeight: 600, marginTop: '0.25rem' }}>NGOs supported</div>
-              </div>
-              <div
-                style={{
-                  padding: '1.5rem',
-                  background: '#f0fdf4',
-                  borderRadius: '16px',
-                  border: '1px solid #bbf7d0',
-                  textAlign: 'center',
-                  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)'
-                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(5, 150, 105, 0.15)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}
-              >
-                <div style={{ width: 48, height: 48, borderRadius: 12, background: '#059669', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
-                  <Tags size={26} strokeWidth={2} />
-                </div>
-                <div style={{ fontSize: '2rem', fontWeight: 800, color: '#065f46', lineHeight: 1.2 }}>{causeAreasCount}</div>
-                <div style={{ fontSize: '0.875rem', color: '#047857', fontWeight: 600, marginTop: '0.25rem' }}>Cause areas</div>
               </div>
             </div>
           </div>

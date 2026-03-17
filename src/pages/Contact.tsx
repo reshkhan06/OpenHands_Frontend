@@ -17,6 +17,7 @@ import {
   Youtube,
   Building2,
 } from 'lucide-react'
+import { submitFeedback } from '@/api/feedback'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -39,11 +40,33 @@ export default function Contact() {
     subject: '',
     message: '',
   })
+  const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    toast.success('Thank you for your message! We will get back to you soon.')
-    setFormData({ name: '', email: '', phone: '', subject: '', message: '' })
+    if (submitting) return
+    setSubmitting(true)
+    try {
+      const category = `Contact: ${formData.subject || 'General inquiry'}`
+      const messageWithPhone = formData.phone
+        ? `${formData.message}\n\nPhone: ${formData.phone}`
+        : formData.message
+      await submitFeedback({
+        name: formData.name,
+        email: formData.email,
+        category,
+        message: messageWithPhone,
+        rating: 5,
+        follow_up: true,
+      })
+      toast.success('Thank you for your message! We will get back to you soon.')
+      setFormData({ name: '', email: '', phone: '', subject: '', message: '' })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to send message. Please try again.'
+      toast.error(msg)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const inputClass =
@@ -218,9 +241,9 @@ export default function Contact() {
                     />
                   </div>
 
-                  <Button type="submit" className="w-full" size="lg">
+                  <Button type="submit" className="w-full" size="lg" disabled={submitting}>
                     <Send className="w-4 h-4 mr-2" />
-                    Send message
+                    {submitting ? 'Sending...' : 'Send message'}
                   </Button>
                   <p className="text-xs text-gray-500 text-center">We keep your data secure and never share it.</p>
                 </form>

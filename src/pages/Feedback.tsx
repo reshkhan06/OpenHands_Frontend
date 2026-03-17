@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { User, Mail, MessageSquare, Tag, Star, Send, Info, CheckSquare, Quote } from 'lucide-react'
+import { submitFeedback } from '@/api/feedback'
 
 const RATING_LABELS: Record<string, string> = {
   '1': 'Poor',
@@ -13,6 +14,7 @@ const RATING_LABELS: Record<string, string> = {
 }
 
 export default function Feedback() {
+  const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -22,10 +24,26 @@ export default function Feedback() {
     followUp: true,
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    toast.success('Thank you for your feedback! We appreciate your input.')
-    setFormData({ name: '', email: '', category: '', message: '', rating: '5', followUp: true })
+    setLoading(true)
+    try {
+      await submitFeedback({
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        category: formData.category,
+        message: formData.message.trim(),
+        rating: Number(formData.rating),
+        follow_up: formData.followUp,
+      })
+      toast.success('Thank you for your feedback! We appreciate your input.')
+      setFormData({ name: '', email: '', category: '', message: '', rating: '5', followUp: true })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to submit feedback'
+      toast.error(msg)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const inputClass =
@@ -169,9 +187,9 @@ export default function Feedback() {
                 </span>
               </label>
 
-              <Button type="submit" className="w-full" size="lg">
+              <Button type="submit" className="w-full" size="lg" disabled={loading}>
                 <Send className="w-4 h-4 mr-2" />
-                Submit feedback
+                {loading ? 'Submitting…' : 'Submit feedback'}
               </Button>
             </form>
 

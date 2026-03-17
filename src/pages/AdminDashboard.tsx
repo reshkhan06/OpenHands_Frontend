@@ -23,6 +23,8 @@ import {
   CreditCard,
   RotateCcw,
   Mail,
+  MessageSquare,
+  ExternalLink,
   type LucideIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -32,15 +34,21 @@ import {
   getAdminUsers,
   updateAdminUser,
   getAdminNGOs,
+  getAdminNGODetail,
   updateAdminNGO,
   deleteAdminNGO,
   getAdminPickups,
   getAdminPickup,
   getAdminConfig,
   updateAdminConfig,
+  getAdminFeedbacks,
+  getAdminUserDetail,
   type AdminUserRow,
+  type AdminUserDetail,
   type AdminNGORow,
+  type AdminNGODetail,
   type AdminPickupRow,
+  type AdminFeedbackRow,
   type AdminDashboardStats,
 } from '@/api/admin'
 
@@ -61,7 +69,7 @@ const PAYMENT_STATUS_CONFIG: Record<string, { label: string; icon: LucideIcon; b
   refunded: { label: 'Refunded', icon: RotateCcw, bg: '#dbeafe', text: '#1e40af' },
 }
 
-type AdminPage = 'dashboard' | 'users' | 'ngos' | 'pickups' | 'settings'
+type AdminPage = 'dashboard' | 'users' | 'ngos' | 'pickups' | 'feedbacks' | 'settings'
 
 const ADMIN_BASE = '/admin'
 
@@ -72,6 +80,7 @@ function pathToPage(pathname: string): { page: AdminPage; pickupId: number | nul
   const pickupsMatch = pathname.match(new RegExp(`^${ADMIN_BASE.replace(/\/$/, '')}/pickups/(\\d+)$`))
   if (pickupsMatch) return { page: 'pickups', pickupId: parseInt(pickupsMatch[1], 10) }
   if (pathname.startsWith(`${ADMIN_BASE}/pickups`)) return { page: 'pickups', pickupId: null }
+  if (pathname.startsWith(`${ADMIN_BASE}/feedbacks`)) return { page: 'feedbacks', pickupId: null }
   if (pathname.startsWith(`${ADMIN_BASE}/settings`)) return { page: 'settings', pickupId: null }
   return { page: 'dashboard', pickupId: null }
 }
@@ -86,8 +95,13 @@ export default function AdminDashboard() {
   const [activePage, setActivePage] = useState<AdminPage>(urlPage)
   const [stats, setStats] = useState<AdminDashboardStats | null>(null)
   const [users, setUsers] = useState<AdminUserRow[]>([])
+  const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null)
+  const [selectedUserLoading, setSelectedUserLoading] = useState(false)
   const [ngos, setNgos] = useState<AdminNGORow[]>([])
+  const [selectedNGO, setSelectedNGO] = useState<AdminNGODetail | null>(null)
+  const [selectedNGOLoading, setSelectedNGOLoading] = useState(false)
   const [pickups, setPickups] = useState<AdminPickupRow[]>([])
+  const [feedbacks, setFeedbacks] = useState<AdminFeedbackRow[]>([])
   const [pickupDetail, setPickupDetail] = useState<Record<string, unknown> | null>(null)
   const [config, setConfig] = useState<{ deposit_amount_paise: number } | null>(null)
   const [depositInput, setDepositInput] = useState('')
@@ -96,22 +110,25 @@ export default function AdminDashboard() {
   const [error, setError] = useState<string | null>(null)
 
   // Filters
-  const [userRole, setUserRole] = useState<string>('')
   const [userSearch, setUserSearch] = useState('')
   const [userIsActive, setUserIsActive] = useState<boolean | ''>('')
   const [ngoVerified, setNgoVerified] = useState<boolean | ''>('')
   const [pickupStatus, setPickupStatus] = useState<string>('')
+  const [feedbackCategory, setFeedbackCategory] = useState<string>('')
+  const [feedbackRating, setFeedbackRating] = useState<string>('')
+  const [feedbackFollowUp, setFeedbackFollowUp] = useState<string>('')
 
   // Sync from URL
   useEffect(() => {
     setActivePage(urlPage)
   }, [urlPage])
 
-  const setPage = (page: AdminPage, pickupId?: number) => {
+  const setPage = (page: AdminPage, id?: number) => {
     if (page === 'dashboard') navigate(`${ADMIN_BASE}/dashboard`)
     else if (page === 'users') navigate(`${ADMIN_BASE}/users`)
-    else if (page === 'ngos') navigate(`${ADMIN_BASE}/ngos`)
-    else if (page === 'pickups') navigate(pickupId ? `${ADMIN_BASE}/pickups/${pickupId}` : `${ADMIN_BASE}/pickups`)
+    else if (page === 'ngos') navigate(id ? `${ADMIN_BASE}/ngos/${id}` : `${ADMIN_BASE}/ngos`)
+    else if (page === 'pickups') navigate(id ? `${ADMIN_BASE}/pickups/${id}` : `${ADMIN_BASE}/pickups`)
+    else if (page === 'feedbacks') navigate(`${ADMIN_BASE}/feedbacks`)
     else if (page === 'settings') navigate(`${ADMIN_BASE}/settings`)
   }
 
@@ -131,7 +148,6 @@ export default function AdminDashboard() {
       setLoading(true)
       setError(null)
       const params: { role?: string; search?: string; is_active?: boolean } = {}
-      if (userRole) params.role = userRole
       if (userSearch.trim()) params.search = userSearch.trim()
       if (userIsActive !== '') params.is_active = userIsActive as boolean
       getAdminUsers(params)
@@ -139,7 +155,7 @@ export default function AdminDashboard() {
         .catch((e) => { const m = e instanceof Error ? e.message : String(e); setError(m); toast.error(m); })
         .finally(() => setLoading(false))
     }
-  }, [activePage, userRole, userSearch, userIsActive])
+  }, [activePage, userSearch, userIsActive])
 
   useEffect(() => {
     if (activePage === 'ngos') {
@@ -162,6 +178,17 @@ export default function AdminDashboard() {
         .finally(() => setLoading(false))
     }
   }, [activePage, pickupStatus])
+
+  useEffect(() => {
+    if (activePage === 'feedbacks') {
+      setLoading(true)
+      setError(null)
+      getAdminFeedbacks(200)
+        .then(setFeedbacks)
+        .catch((e) => { const m = e instanceof Error ? e.message : String(e); setError(m); toast.error(m); })
+        .finally(() => setLoading(false))
+    }
+  }, [activePage])
 
   useEffect(() => {
     if (activePage === 'settings') {
@@ -225,6 +252,21 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleViewUser = async (userId: number) => {
+    setSelectedUser(null)
+    setSelectedUserLoading(true)
+    try {
+      const detail = await getAdminUserDetail(userId)
+      setSelectedUser(detail)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to load donor details'
+      setError(msg)
+      toast.error(msg)
+    } finally {
+      setSelectedUserLoading(false)
+    }
+  }
+
   const handleUpdateNGO = async (ngoId: number, is_verified: boolean) => {
     try {
       await updateAdminNGO(ngoId, { is_verified })
@@ -235,6 +277,22 @@ export default function AdminDashboard() {
       const msg = e instanceof Error ? e.message : 'Update failed'
       setError(msg)
       toast.error(msg)
+    }
+  }
+
+  const handleViewNGO = async (ngoId: number) => {
+    setPage('ngos', ngoId)
+    setSelectedNGO(null)
+    setSelectedNGOLoading(true)
+    try {
+      const detail = await getAdminNGODetail(ngoId)
+      setSelectedNGO(detail)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to load NGO details'
+      setError(msg)
+      toast.error(msg)
+    } finally {
+      setSelectedNGOLoading(false)
     }
   }
 
@@ -272,9 +330,10 @@ export default function AdminDashboard() {
 
   const navItems: { id: AdminPage; label: string; icon: LucideIcon }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'users', label: 'Users', icon: Users },
+    { id: 'users', label: 'Donors', icon: Users },
     { id: 'ngos', label: 'NGOs', icon: Building2 },
     { id: 'pickups', label: 'Pickups', icon: Truck },
+    { id: 'feedbacks', label: 'Feedback', icon: MessageSquare },
     { id: 'settings', label: 'Settings', icon: Settings },
   ]
 
@@ -415,11 +474,6 @@ export default function AdminDashboard() {
                   Filter
                 </span>
                 <input type="text" placeholder="Search name or email" value={userSearch} onChange={(e) => setUserSearch(e.target.value)} style={{ padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.875rem', minWidth: '180px', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }} />
-                <select value={userRole} onChange={(e) => setUserRole(e.target.value)} style={{ padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.875rem', background: '#fff', color: '#475569', fontWeight: 500, cursor: 'pointer' }}>
-                  <option value="">All roles</option>
-                  <option value="donor">Donor</option>
-                  <option value="admin">Admin</option>
-                </select>
                 <select value={String(userIsActive)} onChange={(e) => setUserIsActive(e.target.value === '' ? '' : e.target.value === 'true')} style={{ padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.875rem', background: '#fff', color: '#475569', fontWeight: 500, cursor: 'pointer' }}>
                   <option value="">All status</option>
                   <option value="true">Active</option>
@@ -427,10 +481,48 @@ export default function AdminDashboard() {
                 </select>
               </div>
               <div style={{ padding: '1.5rem', overflowX: 'auto' }}>
-                {loading ? (
+                {selectedUser ? (
+                  <div style={{ maxWidth: 800, margin: '0 auto' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                      <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                        Donor details — {selectedUser.fname} {selectedUser.lname}
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedUser(null)}
+                        style={{
+                          border: 'none',
+                          background: 'transparent',
+                          color: '#64748b',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                        }}
+                      >
+                        Back to list
+                      </button>
+                    </div>
+                    {selectedUserLoading ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#64748b' }}>
+                        <Loader2 size={18} strokeWidth={2} className="animate-spin" />
+                        <span>Loading donor details...</span>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', fontSize: '0.9rem', color: '#0f172a' }}>
+                        <DetailRow label="Email" value={selectedUser.email} />
+                        <DetailRow label="Contact number" value={String(selectedUser.contact_number)} />
+                        <DetailRow label="Location" value={selectedUser.location} wide />
+                        <DetailRow label="Role" value={selectedUser.role === 'admin' ? 'Admin' : 'Donor'} />
+                        <DetailRow label="Status" value={selectedUser.is_active ? 'Active' : 'Blocked'} />
+                        <DetailRow label="Verified" value={selectedUser.is_verified ? 'Yes' : 'No'} />
+                        <DetailRow label="Joined at" value={selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleString() : '—'} wide />
+                      </div>
+                    )}
+                  </div>
+                ) : loading ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#64748b', padding: '2rem' }}>
                     <Loader2 size={20} strokeWidth={2} className="animate-spin" />
-                    <span>Loading users...</span>
+                    <span>Loading donors...</span>
                   </div>
                 ) : (
                   <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 680 }}>
@@ -443,9 +535,6 @@ export default function AdminDashboard() {
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Mail size={14} strokeWidth={2} /> Email</span>
                         </th>
                         <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Shield size={14} strokeWidth={2} /> Role</span>
-                        </th>
-                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><CheckCircle size={14} strokeWidth={2} /> Status</span>
                         </th>
                         <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -456,7 +545,7 @@ export default function AdminDashboard() {
                     <tbody>
                       {users.length === 0 ? (
                         <tr>
-                          <td colSpan={5} style={{ padding: '3rem 16px', textAlign: 'center', color: '#64748b', fontSize: '0.95rem' }}>
+                          <td colSpan={4} style={{ padding: '3rem 16px', textAlign: 'center', color: '#64748b', fontSize: '0.95rem' }}>
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}><Users size={20} strokeWidth={1.5} style={{ opacity: 0.5 }} /> No users match the filters.</span>
                           </td>
                         </tr>
@@ -469,22 +558,20 @@ export default function AdminDashboard() {
                               {u.email}
                             </td>
                             <td style={{ padding: '14px 16px' }}>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '999px', background: u.role === 'admin' ? '#e0e7ff' : '#ccfbf1', color: u.role === 'admin' ? '#3730a3' : '#0f766e', fontSize: '0.8rem', fontWeight: 600 }}>
-                                <Shield size={14} strokeWidth={2} style={{ flexShrink: 0 }} />
-                                {u.role === 'admin' ? 'Admin' : 'Donor'}
-                              </span>
-                            </td>
-                            <td style={{ padding: '14px 16px' }}>
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '999px', background: u.is_active ? '#d1fae5' : '#fee2e2', color: u.is_active ? '#065f46' : '#b91c1c', fontSize: '0.8rem', fontWeight: 600 }}>
                                 {u.is_active ? <CheckCircle size={14} strokeWidth={2} style={{ flexShrink: 0 }} /> : <XCircle size={14} strokeWidth={2} style={{ flexShrink: 0 }} />}
                                 {u.is_active ? 'Active' : 'Blocked'}
                               </span>
                             </td>
                             <td style={{ padding: '14px 16px', display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-                              <select value={u.role} onChange={(e) => handleUpdateUser(u.user_id, { role: e.target.value })} style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.85rem', background: '#fff', cursor: 'pointer', fontWeight: 500 }}>
-                                <option value="donor">Donor</option>
-                                <option value="admin">Admin</option>
-                              </select>
+                              <button
+                                type="button"
+                                onClick={() => handleViewUser(u.user_id)}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 10px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, background: '#e0f2fe', color: '#0369a1' }}
+                              >
+                                <Eye size={14} />
+                                View
+                              </button>
                               <button type="button" onClick={() => handleUpdateUser(u.user_id, { is_active: !u.is_active })} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, background: u.is_active ? '#fef2f2' : '#dcfce7', color: u.is_active ? '#b91c1c' : '#166534', transition: 'transform 0.1s ease' }} onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-1px)' }} onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)' }}>
                                 {u.is_active ? <XCircle size={14} /> : <CheckCircle size={14} />}
                                 {u.is_active ? 'Block' : 'Unblock'}
@@ -520,13 +607,69 @@ export default function AdminDashboard() {
                 </select>
               </div>
               <div style={{ padding: '1.5rem', overflowX: 'auto' }}>
-                {loading ? (
+                {selectedNGO ? (
+                  <div style={{ maxWidth: 900, margin: '0 auto' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                      NGO details — {selectedNGO.ngo_name}
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedNGO(null)}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        color: '#64748b',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Close
+                    </button>
+                  </div>
+                  {selectedNGOLoading ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#64748b' }}>
+                      <Loader2 size={18} strokeWidth={2} className="animate-spin" />
+                      <span>Loading NGO details...</span>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', fontSize: '0.9rem', color: '#0f172a' }}>
+                      <DetailRow label="Email" value={selectedNGO.email} />
+                      <DetailRow label="Registration number" value={selectedNGO.registration_number} />
+                      <DetailRow label="Type" value={selectedNGO.ngo_type} />
+                      <DetailRow label="Address" value={`${selectedNGO.address}, ${selectedNGO.city}, ${selectedNGO.state} - ${selectedNGO.pincode}`} wide />
+                      <DetailRow label="Mission" value={selectedNGO.mission_statement} wide />
+                      <DetailRow label="Bank" value={selectedNGO.bank_name} />
+                      <DetailRow label="Account number" value={selectedNGO.account_number} />
+                      <DetailRow label="IFSC" value={selectedNGO.ifsc_code} />
+                      {selectedNGO.website_url && <DetailRow label="Website" value={selectedNGO.website_url} />}
+                      {selectedNGO.certificate_path && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            Certificate
+                          </span>
+                          <a
+                            href={selectedNGO.certificate_path}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#0f766e', fontWeight: 600, fontSize: '0.9rem' }}
+                          >
+                            View certificate
+                            <ExternalLink size={14} strokeWidth={2} />
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  </div>
+                ) : loading ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#64748b', padding: '2rem' }}>
                     <Loader2 size={20} strokeWidth={2} className="animate-spin" />
                     <span>Loading NGOs...</span>
                   </div>
                 ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 660 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
                     <thead>
                       <tr style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)', borderBottom: '2px solid #e2e8f0' }}>
                         <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -573,6 +716,26 @@ export default function AdminDashboard() {
                             </td>
                             <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
                               <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleViewNGO(n.ngo_id)}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    padding: '8px 12px',
+                                    borderRadius: '10px',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: '0.85rem',
+                                    fontWeight: 600,
+                                    background: '#e0f2fe',
+                                    color: '#0369a1',
+                                  }}
+                                >
+                                  <Eye size={14} strokeWidth={2} />
+                                  View
+                                </button>
                                 <button type="button" onClick={() => handleUpdateNGO(n.ngo_id, true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', boxShadow: '0 2px 6px rgba(16, 185, 129, 0.35)', transition: 'transform 0.1s ease, box-shadow 0.2s ease' }} onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)' }} onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 6px rgba(16, 185, 129, 0.35)' }}>
                                   <CheckCircle size={14} strokeWidth={2} />
                                   Approve
@@ -724,6 +887,129 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
+          {activePage === 'feedbacks' && (
+            <div style={{ background: '#fff', borderRadius: '20px', boxShadow: '0 4px 24px rgba(15, 23, 42, 0.06)', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+              <div style={{ background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)', padding: '1.5rem 2rem' }}>
+                <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <MessageSquare size={22} strokeWidth={2} style={{ opacity: 0.95 }} />
+                  Feedback
+                </h2>
+                <p style={{ margin: '0.35rem 0 0', fontSize: '0.9rem', color: 'rgba(255,255,255,0.85)' }}>Latest feedback submissions</p>
+              </div>
+              <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #f1f5f9', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center', background: 'linear-gradient(180deg, #e0f2fe 0%, #fff 100%)' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600, color: '#0284c7', fontSize: '0.875rem' }}>
+                  <Filter size={16} style={{ opacity: 0.9 }} />
+                  Filter
+                </span>
+                <select
+                  value={feedbackCategory}
+                  onChange={(e) => setFeedbackCategory(e.target.value)}
+                  style={{ padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.875rem', background: '#fff', color: '#475569', fontWeight: 500, cursor: 'pointer' }}
+                >
+                  <option value="">All categories</option>
+                  <option value="Bug report">Bug report</option>
+                  <option value="Feature request">Feature request</option>
+                  <option value="User experience">User experience</option>
+                  <option value="Performance">Performance</option>
+                  <option value="General feedback">General feedback</option>
+                  <option value="Other">Other</option>
+                </select>
+                <select
+                  value={feedbackRating}
+                  onChange={(e) => setFeedbackRating(e.target.value)}
+                  style={{ padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.875rem', background: '#fff', color: '#475569', fontWeight: 500, cursor: 'pointer' }}
+                >
+                  <option value="">All ratings</option>
+                  {[1, 2, 3, 4, 5].map((r) => (
+                    <option key={r} value={String(r)}>
+                      {r} stars
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={feedbackFollowUp}
+                  onChange={(e) => setFeedbackFollowUp(e.target.value)}
+                  style={{ padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.875rem', background: '#fff', color: '#475569', fontWeight: 500, cursor: 'pointer' }}
+                >
+                  <option value="">All follow-up</option>
+                  <option value="true">Follow-up requested</option>
+                  <option value="false">No follow-up</option>
+                </select>
+              </div>
+              <div style={{ padding: '1.5rem', overflowX: 'auto' }}>
+                {loading ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#64748b', padding: '2rem' }}>
+                    <Loader2 size={20} strokeWidth={2} className="animate-spin" />
+                    <span>Loading feedback...</span>
+                  </div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
+                    <thead>
+                      <tr style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)', borderBottom: '2px solid #e2e8f0' }}>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>ID</th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Name</th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Email</th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Category</th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Rating</th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Follow up</th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Submitted</th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Message</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {feedbacks
+                        .filter((f) => (feedbackCategory ? f.category === feedbackCategory : true))
+                        .filter((f) =>
+                          feedbackRating ? (typeof f.rating === 'number' ? f.rating === Number(feedbackRating) : Number(f.rating) === Number(feedbackRating)) : true
+                        )
+                        .filter((f) =>
+                          feedbackFollowUp === ''
+                            ? true
+                            : f.follow_up === (feedbackFollowUp === 'true')
+                        ).length === 0 ? (
+                        <tr>
+                          <td colSpan={8} style={{ padding: '3rem 16px', textAlign: 'center', color: '#64748b', fontSize: '0.95rem' }}>
+                            No feedback submissions yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        feedbacks
+                          .filter((f) => (feedbackCategory ? f.category === feedbackCategory : true))
+                          .filter((f) =>
+                            feedbackRating ? (typeof f.rating === 'number' ? f.rating === Number(feedbackRating) : Number(f.rating) === Number(feedbackRating)) : true
+                          )
+                          .filter((f) =>
+                            feedbackFollowUp === ''
+                              ? true
+                              : f.follow_up === (feedbackFollowUp === 'true')
+                          )
+                          .map((f, idx) => (
+                          <tr key={f.feedback_id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#fff' : '#fafbfc' }}>
+                            <td style={{ padding: '14px 16px', fontWeight: 700, color: '#0284c7' }}>#{f.feedback_id}</td>
+                            <td style={{ padding: '14px 16px', fontWeight: 600, color: '#1e293b' }}>{f.name}</td>
+                            <td style={{ padding: '14px 16px', color: '#475569', fontSize: '0.9rem' }}>{f.email}</td>
+                            <td style={{ padding: '14px 16px', color: '#334155', fontSize: '0.9rem', fontWeight: 600 }}>{f.category || '—'}</td>
+                            <td style={{ padding: '14px 16px', color: '#0f172a', fontSize: '0.9rem', fontWeight: 700 }}>{typeof f.rating === 'number' ? f.rating : Number(f.rating) || 0}/5</td>
+                            <td style={{ padding: '14px 16px' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '999px', background: f.follow_up ? '#dbeafe' : '#f1f5f9', color: f.follow_up ? '#1e40af' : '#64748b', fontSize: '0.8rem', fontWeight: 700 }}>
+                                {f.follow_up ? 'Yes' : 'No'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '14px 16px', color: '#64748b', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                              {f.created_at ? new Date(f.created_at).toLocaleString() : '—'}
+                            </td>
+                            <td style={{ padding: '14px 16px', color: '#334155', fontSize: '0.85rem', maxWidth: '360px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={f.message}>
+                              {f.message || '—'}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          )}
           {activePage === 'settings' && (
             <div style={{ background: '#fff', borderRadius: '20px', boxShadow: '0 4px 24px rgba(15, 23, 42, 0.06)', border: '1px solid #e2e8f0', overflow: 'hidden', maxWidth: '480px' }}>
               <div style={{ background: 'linear-gradient(135deg, #64748b 0%, #475569 100%)', padding: '1.5rem 2rem' }}>
@@ -789,6 +1075,25 @@ function AdminStatCard({
         {Icon && <Icon size={18} strokeWidth={2} color={color} />}
       </div>
       <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#1e293b' }}>{value}</div>
+    </div>
+  )
+}
+
+function DetailRow({ label, value, wide }: { label: string; value: string; wide?: boolean }) {
+  return (
+    <div style={{ gridColumn: wide ? '1 / -1' as any : undefined }}>
+      <span
+        style={{
+          fontSize: '0.8rem',
+          fontWeight: 600,
+          color: '#64748b',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+        }}
+      >
+        {label}
+      </span>
+      <div style={{ fontSize: '0.9rem', color: '#0f172a', marginTop: '0.1rem' }}>{value || '—'}</div>
     </div>
   )
 }

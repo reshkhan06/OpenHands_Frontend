@@ -3,11 +3,15 @@ import { Link, useLocation } from 'react-router-dom'
 import { Button } from './ui/button'
 import { Menu, X, ChevronDown } from 'lucide-react'
 import Logo from './Logo'
+import UserProfileDropdown from './UserProfileDropdown'
+import { isAuthenticated, getUserRole } from '@/api/auth'
 
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isDonateExpanded, setIsDonateExpanded] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
+  const [loggedIn, setLoggedIn] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
   const location = useLocation()
 
   useEffect(() => {
@@ -17,6 +21,11 @@ export default function Navbar() {
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
+  useEffect(() => {
+    setLoggedIn(isAuthenticated())
+    setUserRole(getUserRole())
+  }, [location.pathname])
 
   useEffect(() => {
     if (!isMobileMenuOpen) setIsDonateExpanded(false)
@@ -77,23 +86,29 @@ export default function Navbar() {
             <Link to="/contact" className={navLink(isActive('/contact'))}>
               Contact
             </Link>
-            {/* Login Dropdown */}
-            <div className="relative group ml-2">
-              <Button size="sm" className="flex items-center gap-1 bg-primary text-white hover:bg-primary/90">
-                Login / Register <ChevronDown className="w-4 h-4" />
-              </Button>
-              <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-200 p-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-                <h6 className="font-semibold mb-3 text-slate-800">User Access</h6>
-                <Link to="/login" className="block mb-2">
-                  <Button className="w-full bg-primary hover:bg-primary/90 mb-2">Login</Button>
-                </Link>
-                <Link to="/register" className="block">
-                  <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10">Create Account</Button>
-                </Link>
-                <hr className="my-3 border-slate-200" />
-                <p className="text-xs text-slate-500">Admins & NGOs have separate access</p>
+            {/* Auth / Profile */}
+            {!loggedIn ? (
+              <div className="relative group ml-2">
+                <Button size="sm" className="flex items-center gap-1 bg-primary text-white hover:bg-primary/90">
+                  Login / Register <ChevronDown className="w-4 h-4" />
+                </Button>
+                <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-200 p-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                  <h6 className="font-semibold mb-3 text-slate-800">User Access</h6>
+                  <Link to="/login" className="block mb-2">
+                    <Button className="w-full bg-primary hover:bg-primary/90 mb-2">Login</Button>
+                  </Link>
+                  <Link to="/register" className="block">
+                    <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10">Create Account</Button>
+                  </Link>
+                  <hr className="my-3 border-slate-200" />
+                  <p className="text-xs text-slate-500">Admins & NGOs have separate access</p>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="ml-3">
+                <UserProfileDropdown />
+              </div>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -175,12 +190,34 @@ export default function Navbar() {
                   Contact
                 </Link>
                 <div className="pt-4 mt-4 border-t border-slate-200 space-y-2">
-                  <Link to="/login" onClick={() => setIsMobileMenuOpen(false)}>
-                    <Button className="w-full bg-primary hover:bg-primary/90">Login</Button>
-                  </Link>
-                  <Link to="/register" onClick={() => setIsMobileMenuOpen(false)}>
-                    <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10">Create Account</Button>
-                  </Link>
+                  {!loggedIn ? (
+                    <>
+                      <Link to="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                        <Button className="w-full bg-primary hover:bg-primary/90">Login</Button>
+                      </Link>
+                      <Link to="/register" onClick={() => setIsMobileMenuOpen(false)}>
+                        <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10">Create Account</Button>
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      {userRole === 'admin' && (
+                        <Link to="/admin" onClick={() => setIsMobileMenuOpen(false)}>
+                          <Button className="w-full bg-primary hover:bg-primary/90">View Profile</Button>
+                        </Link>
+                      )}
+                      {userRole === 'ngo' && (
+                        <Link to="/dashboard/ngo" onClick={() => setIsMobileMenuOpen(false)}>
+                          <Button className="w-full bg-primary hover:bg-primary/90">View Profile</Button>
+                        </Link>
+                      )}
+                      {(!userRole || userRole === 'donor') && (
+                        <Link to="/dashboard/donor" onClick={() => setIsMobileMenuOpen(false)}>
+                          <Button className="w-full bg-primary hover:bg-primary/90">View Profile</Button>
+                        </Link>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             </div>
